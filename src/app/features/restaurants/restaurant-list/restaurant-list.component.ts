@@ -3,8 +3,15 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import { RestaurantService } from '../../../core/services/restaurant.service';
+import { AddressService } from '../../../core/services/address.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { RestaurantResponse } from '../../../core/models';
+import {
+  AddressResponse,
+  RestaurantResponse,
+  getFormattedAddress,
+  getGoogleMapsUrl,
+  getOpenStreetMapUrl,
+} from '../../../core/models';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -64,12 +71,12 @@ import { NgIcon } from '@ng-icons/core';
               </button>
             </div>
 
-            <!-- Nearby Geolocation Panel (/restaurants/nearby) -->
+            <!-- Nearby Geolocation Panel (/restaurants/nearby via CEP) -->
             @if (showNearbyPanel()) {
               <div class="rounded-xl border border-border bg-card/90 p-4 shadow-sm space-y-3 max-w-xl">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Busca Geográfica (Fórmula de Haversine)
+                    Buscar Restaurantes Próximos por CEP
                   </span>
                   @if (isNearbyActive()) {
                     <button
@@ -77,33 +84,94 @@ import { NgIcon } from '@ng-icons/core';
                       class="text-xs text-primary hover:underline font-medium"
                       (click)="resetNearby()"
                     >
-                      Limpar filtro geográfico
+                      Limpar filtro de proximidade
                     </button>
                   }
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div>
-                    <label class="text-[11px] font-medium text-muted-foreground">Latitude</label>
-                    <input hlmInput type="number" step="0.0001" [(ngModel)]="nearbyLat" class="w-full mt-0.5" />
+                    <label class="text-[11px] font-medium text-muted-foreground">Seu CEP</label>
+                    <input
+                      hlmInput
+                      type="text"
+                      placeholder="01310-100"
+                      [(ngModel)]="nearbyCep"
+                      class="w-full mt-0.5"
+                    />
                   </div>
                   <div>
-                    <label class="text-[11px] font-medium text-muted-foreground">Longitude</label>
-                    <input hlmInput type="number" step="0.0001" [(ngModel)]="nearbyLon" class="w-full mt-0.5" />
+                    <label class="text-[11px] font-medium text-muted-foreground">Número</label>
+                    <input
+                      hlmInput
+                      type="text"
+                      placeholder="1000"
+                      [(ngModel)]="nearbyNumber"
+                      class="w-full mt-0.5"
+                    />
                   </div>
                   <div>
                     <label class="text-[11px] font-medium text-muted-foreground">Raio (km)</label>
-                    <input hlmInput type="number" min="1" max="100" [(ngModel)]="nearbyRadius" class="w-full mt-0.5" />
+                    <input
+                      hlmInput
+                      type="number"
+                      min="1"
+                      max="100"
+                      [(ngModel)]="nearbyRadius"
+                      class="w-full mt-0.5"
+                    />
                   </div>
                 </div>
+
+                @if (nearbyResolvedAddress(); as resolved) {
+                  <div class="rounded-lg border border-primary/25 bg-primary/5 p-2.5 text-xs space-y-1.5">
+                    <p class="font-medium text-foreground flex items-start gap-1.5">
+                      <ng-icon name="lucideMapPin" class="text-xs text-primary shrink-0 mt-0.5" />
+                      <span>{{ formatAddress(resolved) }}</span>
+                    </p>
+                    <div class="flex flex-wrap items-center gap-2 pl-4">
+                      @if (googleMapsUrl(resolved); as gUrl) {
+                        <a
+                          [href]="gUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 rounded bg-primary/10 hover:bg-primary/20 text-primary px-2 py-0.5 text-[10px] font-semibold transition-colors"
+                        >
+                          <ng-icon name="lucideMap" class="text-[10px]" />
+                          <span>Ver no Google Maps</span>
+                          <ng-icon name="lucideExternalLink" class="text-[9px]" />
+                        </a>
+                      }
+                      @if (openStreetMapUrl(resolved); as osmUrl) {
+                        <a
+                          [href]="osmUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 rounded bg-background hover:bg-muted text-foreground px-2 py-0.5 text-[10px] font-medium border border-border transition-colors"
+                        >
+                          <ng-icon name="lucideCompass" class="text-[10px]" />
+                          <span>OpenStreetMap</span>
+                          <ng-icon name="lucideExternalLink" class="text-[9px]" />
+                        </a>
+                      }
+                    </div>
+                  </div>
+                }
+
                 <div class="flex items-center justify-between pt-1">
                   <button
                     type="button"
                     class="text-xs text-muted-foreground hover:text-foreground underline"
-                    (click)="usePaulistaCoords()"
+                    (click)="usePaulistaAddress()"
                   >
-                    Usar Av. Paulista (-23.5648, -46.6519)
+                    Usar Av. Paulista (CEP 01310-100, Nº 1000)
                   </button>
-                  <button hlmBtn size="sm" class="gap-1.5" (click)="searchNearby()">
+                  <button
+                    hlmBtn
+                    size="sm"
+                    class="gap-1.5"
+                    [disabled]="isLoading()"
+                    (click)="searchNearby()"
+                  >
                     <ng-icon name="lucideMapPin" class="text-xs" />
                     <span>Filtrar no Raio de {{ nearbyRadius }}km</span>
                   </button>
@@ -293,17 +361,39 @@ import { NgIcon } from '@ng-icons/core';
 
                   <!-- Address Details -->
                   @if (restaurant.address) {
-                    <div class="rounded-xl bg-muted/35 p-2.5 text-xs text-muted-foreground space-y-0.5 border border-border/50">
-                      <p class="font-medium text-foreground/90 truncate flex items-center gap-1.5">
-                        <ng-icon name="lucideMapPin" class="text-xs text-primary shrink-0" />
-                        <span class="truncate">{{ restaurant.address.street }}, {{ restaurant.address.number }}</span>
-                        @if (restaurant.address.complement) {
-                          <span class="text-muted-foreground">({{ restaurant.address.complement }})</span>
-                        }
+                    <div class="rounded-xl bg-muted/35 p-2.5 text-xs text-muted-foreground space-y-1.5 border border-border/50">
+                      <p class="font-medium text-foreground/90 leading-snug flex items-start gap-1.5">
+                        <ng-icon name="lucideMapPin" class="text-xs text-primary shrink-0 mt-0.5" />
+                        <span>{{ formatAddress(restaurant.address) }}</span>
                       </p>
-                      <p class="truncate pl-4">
-                        {{ restaurant.address.neighborhood }} • {{ restaurant.address.city }}/{{ restaurant.address.state }}
-                      </p>
+                      @if (googleMapsUrl(restaurant.address) || openStreetMapUrl(restaurant.address)) {
+                        <div class="flex flex-wrap items-center gap-2 pl-4 pt-0.5">
+                          @if (googleMapsUrl(restaurant.address); as gUrl) {
+                            <a
+                              [href]="gUrl"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="inline-flex items-center gap-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary px-2 py-0.5 text-[10px] font-semibold transition-colors"
+                            >
+                              <ng-icon name="lucideMap" class="text-[11px]" />
+                              <span>Google Maps</span>
+                              <ng-icon name="lucideExternalLink" class="text-[10px]" />
+                            </a>
+                          }
+                          @if (openStreetMapUrl(restaurant.address); as osmUrl) {
+                            <a
+                              [href]="osmUrl"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="inline-flex items-center gap-1 rounded-md bg-muted hover:bg-muted/80 text-foreground px-2 py-0.5 text-[10px] font-medium border border-border transition-colors"
+                            >
+                              <ng-icon name="lucideCompass" class="text-[11px]" />
+                              <span>OpenStreetMap</span>
+                              <ng-icon name="lucideExternalLink" class="text-[10px]" />
+                            </a>
+                          }
+                        </div>
+                      }
                     </div>
                   }
                 </div>
@@ -342,6 +432,7 @@ import { NgIcon } from '@ng-icons/core';
 })
 export class RestaurantListComponent implements OnInit {
   private readonly restaurantService = inject(RestaurantService);
+  private readonly addressService = inject(AddressService);
   protected readonly authService = inject(AuthService);
 
   protected readonly restaurants = signal<RestaurantResponse[]>([]);
@@ -352,8 +443,9 @@ export class RestaurantListComponent implements OnInit {
 
   protected readonly showNearbyPanel = signal(false);
   protected readonly isNearbyActive = signal(false);
-  protected nearbyLat = -23.564886;
-  protected nearbyLon = -46.651918;
+  protected readonly nearbyResolvedAddress = signal<AddressResponse | null>(null);
+  protected nearbyCep = '01310-100';
+  protected nearbyNumber = '1000';
   protected nearbyRadius = 10;
 
   protected readonly categories = [
@@ -362,6 +454,10 @@ export class RestaurantListComponent implements OnInit {
     { id: 'BURGER' as const, label: 'Hambúrgueres', icon: 'lucideFlame' },
     { id: 'PIZZA' as const, label: 'Pizzarias', icon: 'lucidePizza' },
   ];
+
+  protected readonly formatAddress = getFormattedAddress;
+  protected readonly googleMapsUrl = getGoogleMapsUrl;
+  protected readonly openStreetMapUrl = getOpenStreetMapUrl;
 
   protected readonly openCount = computed(
     () => this.restaurants().filter((r) => r.isOpen).length
@@ -386,11 +482,18 @@ export class RestaurantListComponent implements OnInit {
       const matchName = r.tradeName.toLowerCase().includes(query);
       const matchCity = r.address?.city.toLowerCase().includes(query) ?? false;
       const matchNeighborhood = r.address?.neighborhood.toLowerCase().includes(query) ?? false;
-      return matchName || matchCity || matchNeighborhood;
+      const matchFormatted = r.address?.formattedAddress?.toLowerCase().includes(query) ?? false;
+      return matchName || matchCity || matchNeighborhood || matchFormatted;
     });
   });
 
   ngOnInit(): void {
+    const userAddr = this.authService.currentUser()?.address;
+    if (userAddr?.cep && userAddr?.number) {
+      this.nearbyCep = userAddr.cep;
+      this.nearbyNumber = userAddr.number;
+      this.nearbyResolvedAddress.set(userAddr);
+    }
     this.loadRestaurants();
   }
 
@@ -417,32 +520,54 @@ export class RestaurantListComponent implements OnInit {
     this.showNearbyPanel.update((v) => !v);
   }
 
-  usePaulistaCoords(): void {
-    this.nearbyLat = -23.564886;
-    this.nearbyLon = -46.651918;
+  usePaulistaAddress(): void {
+    this.nearbyCep = '01310-100';
+    this.nearbyNumber = '1000';
     this.nearbyRadius = 10;
   }
 
   searchNearby(): void {
+    const cep = this.nearbyCep.trim();
+    const number = this.nearbyNumber.trim();
+    if (!cep || !number) {
+      this.errorMessage.set('Informe o CEP e o número para buscar restaurantes próximos.');
+      return;
+    }
+
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.restaurantService
-      .findNearby(this.nearbyLat, this.nearbyLon, this.nearbyRadius)
-      .subscribe({
-        next: (data) => {
-          this.restaurants.set(data);
-          this.isNearbyActive.set(true);
+    this.addressService.geocodePreview({ cep, number }).subscribe({
+      next: (resolved) => {
+        this.nearbyResolvedAddress.set(resolved);
+        if (resolved.latitude == null || resolved.longitude == null) {
           this.isLoading.set(false);
-        },
-        error: () => {
-          this.isLoading.set(false);
-          this.errorMessage.set('Erro ao buscar restaurantes próximos.');
-        },
-      });
+          this.errorMessage.set('Não foi possível resolver a localização do CEP informado.');
+          return;
+        }
+        this.restaurantService
+          .findNearby(Number(resolved.latitude), Number(resolved.longitude), this.nearbyRadius)
+          .subscribe({
+            next: (data) => {
+              this.restaurants.set(data);
+              this.isNearbyActive.set(true);
+              this.isLoading.set(false);
+            },
+            error: () => {
+              this.isLoading.set(false);
+              this.errorMessage.set('Erro ao buscar restaurantes próximos.');
+            },
+          });
+      },
+      error: () => {
+        this.isLoading.set(false);
+        this.errorMessage.set('Não foi possível resolver o CEP informado.');
+      },
+    });
   }
 
   resetNearby(): void {
+    this.nearbyResolvedAddress.set(null);
     this.loadRestaurants();
   }
 
