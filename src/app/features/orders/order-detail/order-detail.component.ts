@@ -1,0 +1,272 @@
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import { OrderService } from '../../../core/services/order.service';
+import { OrderResponse, OrderStatus } from '../../../core/models';
+import { HlmCardImports } from '@spartan-ng/helm/card';
+import { HlmBadgeImports } from '@spartan-ng/helm/badge';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { NgIcon } from '@ng-icons/core';
+
+@Component({
+  selector: 'app-order-detail',
+  imports: [RouterLink, CurrencyPipe, DatePipe, HlmCardImports, HlmBadgeImports, HlmButtonImports, NgIcon],
+  template: `
+    <div class="container mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div class="mb-6 flex items-center justify-between">
+        <a
+          routerLink="/orders"
+          class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+        >
+          <ng-icon name="lucideArrowLeft" class="text-sm transition-transform group-hover:-translate-x-0.5" />
+          <span>Voltar para Pedidos</span>
+        </a>
+        <button hlmBtn variant="outline" size="xs" class="gap-1.5" (click)="loadOrder()">
+          <ng-icon name="lucideRefreshCw" class="text-xs" />
+          <span>Atualizar Status</span>
+        </button>
+      </div>
+
+      @if (isLoading()) {
+        <div hlmCard class="h-80 animate-pulse bg-muted/40 rounded-2xl"></div>
+      } @else if (order(); as ord) {
+        <div class="space-y-6">
+          <!-- Status Timeline Card -->
+          <div hlmCard class="rounded-2xl border-border p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-primary">
+                    Rastreamento do Pedido
+                  </span>
+                  @if (ord.idempotencyKey) {
+                    <span hlmBadge variant="secondary" class="text-[10px]">
+                      Idempotency: {{ ord.idempotencyKey }}
+                    </span>
+                  }
+                </div>
+                <h1 class="text-2xl font-extrabold tracking-tight mt-1">
+                  {{ ord.restaurantName }}
+                </h1>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                  Pedido #{{ ord.id }} • Realizado em {{ ord.createdAt | date:'dd/MM/yyyy HH:mm:ss' }}
+                </p>
+              </div>
+
+              <span class="rounded-full px-4 py-1.5 text-xs font-extrabold bg-primary text-primary-foreground self-start sm:self-center">
+                {{ getStatusLabel(ord.status) }}
+              </span>
+            </div>
+
+            <!-- Visual Stepper -->
+            @if (ord.status !== 'CANCELED') {
+              <div class="py-6 grid grid-cols-2 sm:grid-cols-6 gap-3">
+                @for (step of steps; track step.status; let idx = $index) {
+                  <div
+                    class="flex flex-col items-center text-center p-3 rounded-xl border transition-all"
+                    [class]="
+                      isStepCompleted(ord.status, step.status)
+                        ? 'border-primary/40 bg-primary/10 text-foreground font-semibold'
+                        : 'border-border/60 bg-muted/20 text-muted-foreground opacity-60'
+                    "
+                  >
+                    <ng-icon [name]="step.icon" class="text-2xl mb-1.5 text-primary" />
+                    <span class="text-xs">{{ step.label }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="my-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-center text-sm text-destructive font-semibold flex items-center justify-center gap-2">
+                <ng-icon name="lucideXCircle" class="text-base" />
+                <span>Este pedido foi cancelado.</span>
+              </div>
+            }
+
+            <!-- RabbitMQ Lifecycle Simulator Controls -->
+            <div class="pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
+              <div class="text-xs text-muted-foreground flex items-center gap-1.5">
+                <ng-icon name="lucideZap" class="text-amber-500 text-sm shrink-0" />
+                <span>
+                  <strong class="text-foreground">Simulador RabbitMQ:</strong>
+                  Avance o status para emitir eventos na exchange <code>foodrush.orders.exchange</code>
+                </span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                @for (step of steps; track step.status) {
+                  <button
+                    hlmBtn
+                    size="xs"
+                    class="gap-1"
+                    [variant]="ord.status === step.status ? 'default' : 'outline'"
+                    [disabled]="isUpdating() || ord.status === step.status"
+                    (click)="changeStatus(step.status)"
+                  >
+                    <ng-icon [name]="step.icon" class="text-xs" />
+                    <span>{{ step.label }}</span>
+                  </button>
+                }
+                @if (ord.status !== 'CANCELED' && ord.status !== 'DELIVERED') {
+                  <button
+                    hlmBtn
+                    size="xs"
+                    variant="destructive"
+                    class="gap-1"
+                    [disabled]="isUpdating()"
+                    (click)="changeStatus('CANCELED')"
+                  >
+                    <ng-icon name="lucideX" class="text-xs" />
+                    <span>Cancelar</span>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Details & Financial Breakdown -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div hlmCard class="md:col-span-2 rounded-2xl border-border p-6 space-y-4">
+              <h2 class="text-base font-bold">Itens do Pedido ({{ ord.items.length }})</h2>
+
+              <div class="divide-y divide-border">
+                @for (item of ord.items; track item.id) {
+                  <div class="py-3.5 flex items-start justify-between gap-4 text-sm">
+                    <div class="space-y-1">
+                      <div class="font-bold">
+                        <span class="text-primary mr-1">{{ item.quantity }}x</span>
+                        {{ item.menuItemName }}
+                      </div>
+                      @if (item.sizeName) {
+                        <div class="text-xs text-muted-foreground">
+                          Tamanho: <strong>{{ item.sizeName }}</strong>
+                          ({{ item.unitPrice | currency:'BRL':'symbol':'1.2-2' }} un.)
+                        </div>
+                      }
+                      @if (item.complements && item.complements.length > 0) {
+                        <div class="pl-3 border-l-2 border-primary/30 space-y-0.5 pt-1">
+                          @for (comp of item.complements; track comp.id) {
+                            <div class="text-xs text-muted-foreground">
+                              + {{ comp.quantity }}x {{ comp.name }}
+                              ({{ comp.price | currency:'BRL':'symbol':'1.2-2' }})
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+
+                    <div class="font-bold text-foreground shrink-0">
+                      {{ item.totalPrice | currency:'BRL':'symbol':'1.2-2' }}
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Summary & Address Card -->
+            <div hlmCard class="rounded-2xl border-border p-6 space-y-5">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Dados de Entrega
+                </h3>
+                <p class="text-sm font-semibold">{{ ord.customerName }}</p>
+                <p class="text-xs text-muted-foreground mt-1 leading-relaxed flex items-center gap-1.5">
+                  <ng-icon name="lucideMapPin" class="text-xs text-primary shrink-0" />
+                  <span>{{ ord.deliveryAddress || 'Endereço não informado' }}</span>
+                </p>
+              </div>
+
+              <div class="pt-4 border-t border-border space-y-2 text-xs">
+                <h3 class="font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Resumo Financeiro
+                </h3>
+                <div class="flex justify-between">
+                  <span class="text-muted-foreground">Subtotal dos Itens</span>
+                  <span>{{ ord.subtotal | currency:'BRL':'symbol':'1.2-2' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted-foreground">Taxa de Entrega</span>
+                  <span>{{ ord.deliveryFee | currency:'BRL':'symbol':'1.2-2' }}</span>
+                </div>
+                <div class="flex justify-between text-base font-extrabold pt-2 border-t border-border">
+                  <span>Total Pago</span>
+                  <span class="text-primary">{{ ord.total | currency:'BRL':'symbol':'1.2-2' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  `,
+})
+export class OrderDetailComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
+  private readonly orderService = inject(OrderService);
+
+  protected readonly order = signal<OrderResponse | null>(null);
+  protected readonly isLoading = signal(false);
+  protected readonly isUpdating = signal(false);
+
+  protected readonly steps: { status: OrderStatus; label: string; icon: string }[] = [
+    { status: 'CREATED', label: 'Criado', icon: 'lucideFileText' },
+    { status: 'PAID', label: 'Pago', icon: 'lucideCreditCard' },
+    { status: 'PREPARING', label: 'Preparando', icon: 'lucideFlame' },
+    { status: 'READY', label: 'Pronto', icon: 'lucideCheckCircle2' },
+    { status: 'IN_ROUTE', label: 'Em Rota', icon: 'lucideBike' },
+    { status: 'DELIVERED', label: 'Entregue', icon: 'lucidePackageCheck' },
+  ];
+
+  ngOnInit(): void {
+    this.loadOrder();
+  }
+
+  loadOrder(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    this.isLoading.set(true);
+    this.orderService.getOrderById(id).subscribe({
+      next: (data) => {
+        this.order.set(data);
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.isLoading.set(false);
+      },
+    });
+  }
+
+  changeStatus(status: OrderStatus): void {
+    const ord = this.order();
+    if (!ord) return;
+    this.isUpdating.set(true);
+    this.orderService.updateOrderStatus(ord.id, status).subscribe({
+      next: (updated) => {
+        this.order.set(updated);
+        this.isUpdating.set(false);
+      },
+      error: () => {
+        this.isUpdating.set(false);
+      },
+    });
+  }
+
+  isStepCompleted(current: OrderStatus, target: OrderStatus): boolean {
+    const orderIdx = this.steps.findIndex((s) => s.status === current);
+    const targetIdx = this.steps.findIndex((s) => s.status === target);
+    return orderIdx >= targetIdx && orderIdx !== -1;
+  }
+
+  getStatusLabel(status: OrderStatus): string {
+    const map: Record<OrderStatus, string> = {
+      CREATED: 'Pedido Criado',
+      PAID: 'Pagamento Confirmado',
+      PREPARING: 'Em Preparo na Cozinha',
+      READY: 'Pronto para Coleta',
+      IN_ROUTE: 'Saiu para Entrega',
+      DELIVERED: 'Pedido Entregue',
+      CANCELED: 'Pedido Cancelado',
+    };
+    return map[status] ?? status;
+  }
+}
+
