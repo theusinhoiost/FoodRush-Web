@@ -46,6 +46,11 @@ import {
   lucideXCircle,
   lucidePackageCheck,
   lucideShieldCheck,
+  lucideExternalLink,
+  lucideMap,
+  lucideNavigation,
+  lucideCompass,
+  lucideEye,
 } from '@ng-icons/lucide';
 
 export const appConfig: ApplicationConfig = {
@@ -95,6 +100,11 @@ export const appConfig: ApplicationConfig = {
       lucideXCircle,
       lucidePackageCheck,
       lucideShieldCheck,
+      lucideExternalLink,
+      lucideMap,
+      lucideNavigation,
+      lucideCompass,
+      lucideEye,
     }),
   ],
 };

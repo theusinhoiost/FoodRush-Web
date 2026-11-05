@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RestaurantService } from '../../../core/services/restaurant.service';
+import { AddressService } from '../../../core/services/address.service';
 import { MenuService } from '../../../core/services/menu.service';
 import { OrderService } from '../../../core/services/order.service';
 import { CartService } from '../../../core/services/cart.service';
@@ -17,6 +18,9 @@ import {
   OrderCreateRequest,
   ProblemDetail,
   RestaurantResponse,
+  getFormattedAddress,
+  getGoogleMapsUrl,
+  getOpenStreetMapUrl,
 } from '../../../core/models';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
@@ -92,14 +96,38 @@ import { NgIcon } from '@ng-icons/core';
                 </div>
 
                 @if (rest.address) {
-                  <p class="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5">
-                    <ng-icon name="lucideMapPin" class="text-xs text-primary shrink-0" />
-                    <span>
-                      {{ rest.address.street }}, {{ rest.address.number }}
-                      @if (rest.address.complement) { - {{ rest.address.complement }} }
-                      • {{ rest.address.neighborhood }}, {{ rest.address.city }}/{{ rest.address.state }}
-                    </span>
-                  </p>
+                  <div class="space-y-1.5">
+                    <p class="text-xs sm:text-sm text-muted-foreground flex items-start gap-1.5">
+                      <ng-icon name="lucideMapPin" class="text-xs text-primary shrink-0 mt-1" />
+                      <span>{{ formatAddress(rest.address) }}</span>
+                    </p>
+                    <div class="flex flex-wrap items-center gap-2 pl-4">
+                      @if (googleMapsUrl(rest.address); as gUrl) {
+                        <a
+                          [href]="gUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-0.5 text-xs font-semibold transition-colors"
+                        >
+                          <ng-icon name="lucideMap" class="text-xs" />
+                          <span>Ver no Google Maps</span>
+                          <ng-icon name="lucideExternalLink" class="text-[10px]" />
+                        </a>
+                      }
+                      @if (openStreetMapUrl(rest.address); as osmUrl) {
+                        <a
+                          [href]="osmUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 rounded-md bg-background/90 hover:bg-muted text-foreground px-2.5 py-0.5 text-xs font-medium border border-border transition-colors"
+                        >
+                          <ng-icon name="lucideCompass" class="text-xs" />
+                          <span>OpenStreetMap</span>
+                          <ng-icon name="lucideExternalLink" class="text-[10px]" />
+                        </a>
+                      }
+                    </div>
+                  </div>
                 }
 
                 <div class="flex flex-wrap items-center gap-3 pt-1 text-xs">
@@ -120,12 +148,12 @@ import { NgIcon } from '@ng-icons/core';
               </div>
             </div>
 
-            <!-- Dynamic Delivery Estimate Box -->
+            <!-- Dynamic Delivery Estimate Box (by CEP + Number) -->
             <div class="rounded-xl border border-border bg-background/85 p-3.5 space-y-2 md:w-72 shrink-0">
               <div class="text-xs font-semibold text-foreground flex items-center justify-between">
                 <span class="inline-flex items-center gap-1.5">
                   <ng-icon name="lucideMapPin" class="text-xs text-primary" />
-                  <span>Simular Frete Dinâmico</span>
+                  <span>Simular Frete por CEP</span>
                 </span>
                 <button
                   type="button"
@@ -137,12 +165,12 @@ import { NgIcon } from '@ng-icons/core';
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <label class="text-[10px] text-muted-foreground">Sua Latitude</label>
-                  <input hlmInput type="number" step="0.001" [(ngModel)]="customerLat" class="h-7 text-xs w-full" />
+                  <label class="text-[10px] text-muted-foreground">Seu CEP</label>
+                  <input hlmInput type="text" placeholder="01310-100" [(ngModel)]="customerCep" class="h-7 text-xs w-full" />
                 </div>
                 <div>
-                  <label class="text-[10px] text-muted-foreground">Sua Longitude</label>
-                  <input hlmInput type="number" step="0.001" [(ngModel)]="customerLon" class="h-7 text-xs w-full" />
+                  <label class="text-[10px] text-muted-foreground">Número</label>
+                  <input hlmInput type="text" placeholder="1000" [(ngModel)]="customerNumber" class="h-7 text-xs w-full" />
                 </div>
               </div>
             </div>
@@ -601,6 +629,7 @@ export class RestaurantDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly restaurantService = inject(RestaurantService);
+  private readonly addressService = inject(AddressService);
   private readonly menuService = inject(MenuService);
   private readonly orderService = inject(OrderService);
   protected readonly cartService = inject(CartService);
@@ -612,8 +641,12 @@ export class RestaurantDetailComponent implements OnInit {
   protected readonly isLoadingRestaurant = signal(false);
   protected readonly deliveryEstimate = signal<DeliveryFeeEstimateResponse | null>(null);
 
-  protected customerLat = -23.564886;
-  protected customerLon = -46.651918;
+  protected readonly formatAddress = getFormattedAddress;
+  protected readonly googleMapsUrl = getGoogleMapsUrl;
+  protected readonly openStreetMapUrl = getOpenStreetMapUrl;
+
+  protected customerCep = '01310-100';
+  protected customerNumber = '1000';
 
   // Item Customization State
   protected readonly activeCustomizingItem = signal<MenuItemResponse | null>(null);
@@ -624,7 +657,7 @@ export class RestaurantDetailComponent implements OnInit {
   protected readonly itemQuantity = signal(1);
 
   // Checkout State
-  protected deliveryAddress = 'Avenida Paulista, 1000, Apto 101 - Bela Vista, São Paulo/SP';
+  protected deliveryAddress = 'Avenida Paulista, 1000 - Bela Vista, São Paulo - SP, CEP: 01310-100';
   protected readonly isPlacingOrder = signal(false);
   protected readonly checkoutError = signal<string | null>(null);
 
@@ -647,11 +680,9 @@ export class RestaurantDetailComponent implements OnInit {
     const user = this.authService.currentUser();
     if (user?.address) {
       const a = user.address;
-      this.deliveryAddress = `${a.street}, ${a.number}${a.complement ? ', ' + a.complement : ''} - ${a.neighborhood}, ${a.city}/${a.state}`;
-      if (a.latitude && a.longitude) {
-        this.customerLat = Number(a.latitude);
-        this.customerLon = Number(a.longitude);
-      }
+      this.deliveryAddress = getFormattedAddress(a);
+      if (a.cep) this.customerCep = a.cep;
+      if (a.number) this.customerNumber = a.number;
     }
 
     if (id) {
@@ -683,13 +714,24 @@ export class RestaurantDetailComponent implements OnInit {
 
   estimateDeliveryFee(): void {
     const id = this.restaurantId();
-    if (!id) return;
-    this.restaurantService.estimateDelivery(id, this.customerLat, this.customerLon).subscribe({
-      next: (est) => {
-        this.deliveryEstimate.set(est);
-        if (this.cartService.restaurantId() === id) {
-          this.cartService.setDeliveryFee(Number(est.totalDeliveryFee));
-        }
+    const cep = this.customerCep.trim();
+    const number = this.customerNumber.trim();
+    if (!id || !cep || !number) return;
+
+    this.addressService.geocodePreview({ cep, number }).subscribe({
+      next: (resolved) => {
+        this.deliveryAddress = getFormattedAddress(resolved);
+        if (resolved.latitude == null || resolved.longitude == null) return;
+        this.restaurantService
+          .estimateDelivery(id, Number(resolved.latitude), Number(resolved.longitude))
+          .subscribe({
+            next: (est) => {
+              this.deliveryEstimate.set(est);
+              if (this.cartService.restaurantId() === id) {
+                this.cartService.setDeliveryFee(Number(est.totalDeliveryFee));
+              }
+            },
+          });
       },
     });
   }
