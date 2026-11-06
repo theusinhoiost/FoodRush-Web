@@ -1,4 +1,4 @@
-import { Component, inject, PLATFORM_ID, signal } from '@angular/core';
+import { Component, inject, PLATFORM_ID, signal, computed } from '@angular/core';
 import { isPlatformBrowser, CurrencyPipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -40,22 +40,36 @@ import { NgIcon } from '@ng-icons/core';
               <ng-icon name="lucideUtensils" class="text-base" />
               <span>Restaurantes</span>
             </a>
-            <a
-              routerLink="/orders"
-              routerLinkActive="bg-accent text-accent-foreground font-semibold"
-              class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-            >
-              <ng-icon name="lucidePackage" class="text-base" />
-              <span>Pedidos & KDS</span>
-            </a>
-            <a
-              routerLink="/register/restaurant"
-              routerLinkActive="bg-accent text-accent-foreground font-semibold"
-              class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-            >
-              <ng-icon name="lucideStore" class="text-base" />
-              <span>Seja Parceiro</span>
-            </a>
+            @if (authService.isAuthenticated()) {
+              <a
+                routerLink="/orders"
+                routerLinkActive="bg-accent text-accent-foreground font-semibold"
+                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <ng-icon name="lucidePackage" class="text-base" />
+                <span>Meus Pedidos</span>
+              </a>
+            }
+            @if (canAccessKds()) {
+              <a
+                routerLink="/kds"
+                routerLinkActive="bg-accent text-accent-foreground font-semibold"
+                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <ng-icon name="lucideChefHat" class="text-base" />
+                <span>Painel KDS</span>
+              </a>
+            }
+            @if (canSeePartnerLink()) {
+              <a
+                routerLink="/register/restaurant"
+                routerLinkActive="bg-accent text-accent-foreground font-semibold"
+                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <ng-icon name="lucideStore" class="text-base" />
+                <span>Seja Parceiro</span>
+              </a>
+            }
             @if (authService.isAuthenticated()) {
               <a
                 routerLink="/profile"
@@ -140,14 +154,24 @@ import { NgIcon } from '@ng-icons/core';
           <ng-icon name="lucideUtensils" class="text-base" />
           <span>Início</span>
         </a>
-        <a routerLink="/orders" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
-          <ng-icon name="lucidePackage" class="text-base" />
-          <span>Pedidos</span>
-        </a>
-        <a routerLink="/register/restaurant" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
-          <ng-icon name="lucideStore" class="text-base" />
-          <span>Parceiro</span>
-        </a>
+        @if (authService.isAuthenticated()) {
+          <a routerLink="/orders" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
+            <ng-icon name="lucidePackage" class="text-base" />
+            <span>Pedidos</span>
+          </a>
+        }
+        @if (canAccessKds()) {
+          <a routerLink="/kds" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
+            <ng-icon name="lucideChefHat" class="text-base" />
+            <span>KDS</span>
+          </a>
+        }
+        @if (canSeePartnerLink()) {
+          <a routerLink="/register/restaurant" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
+            <ng-icon name="lucideStore" class="text-base" />
+            <span>Parceiro</span>
+          </a>
+        }
         <a routerLink="/profile" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
           <ng-icon name="lucideUser" class="text-base" />
           <span>Perfil</span>
@@ -162,6 +186,16 @@ export class NavbarComponent {
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
   protected readonly isDark = signal(false);
+
+  protected readonly canSeePartnerLink = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role !== 'RESTAURANT';
+  });
+
+  protected readonly canAccessKds = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role === 'RESTAURANT' || role === 'COURIER' || role === 'ADMIN';
+  });
 
   constructor() {
     if (isPlatformBrowser(this.platformId)) {

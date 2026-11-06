@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -40,13 +40,17 @@ import { NgIcon } from '@ng-icons/core';
     <div class="container mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 class="text-3xl font-extrabold tracking-tight">Meu Perfil, Usuários & Endereços</h1>
+          <h1 class="text-3xl font-extrabold tracking-tight">
+            {{ isAdmin() ? 'Meu Perfil, Usuários & Endereços' : 'Meu Perfil' }}
+          </h1>
           <p class="text-sm text-muted-foreground mt-1">
-            Atualize seus dados cadastrais, gerencie contas ativas e consulte o serviço padronizado de endereços e geocodificação
+            {{ isAdmin()
+              ? 'Atualize seus dados cadastrais, gerencie contas ativas e consulte o serviço padronizado de endereços e geocodificação'
+              : 'Visualize e atualize seus dados cadastrais e endereço principal' }}
           </p>
         </div>
 
-        @if (authService.isAuthenticated()) {
+        @if (isAdmin()) {
           <div class="inline-flex rounded-xl border border-border bg-muted/50 p-1 self-start">
             <button
               type="button"
@@ -93,9 +97,9 @@ import { NgIcon } from '@ng-icons/core';
           </a>
         </div>
       } @else {
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <!-- Left Column: Edit Current User Profile -->
-          <div class="lg:col-span-5">
+        <div [class]="isAdmin() ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-start' : 'max-w-2xl mx-auto'">
+          <!-- Left Column / Main Profile Card -->
+          <div [class]="isAdmin() ? 'lg:col-span-5' : 'w-full'">
             <div hlmCard class="rounded-2xl border-border p-6 shadow-sm space-y-5">
               <div class="flex items-center gap-4 pb-4 border-b border-border">
                 <div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 text-white flex items-center justify-center text-2xl font-extrabold shadow">
@@ -188,7 +192,7 @@ import { NgIcon } from '@ng-icons/core';
                   <div class="flex items-center justify-between gap-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                       <ng-icon name="lucideMapPin" class="text-xs text-primary" />
-                      <span>Endereço Principal (OpenCage Geocoder)</span>
+                      <span>Endereço Principal</span>
                     </h3>
                     <button
                       hlmBtn
@@ -221,7 +225,7 @@ import { NgIcon } from '@ng-icons/core';
                   @if (profileAddressPreview(); as preview) {
                     <div class="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-1.5 text-xs">
                       <div class="flex items-center justify-between">
-                        <span class="font-bold text-primary">Preview (/api/v1/addresses/geocode)</span>
+                        <span class="font-bold text-primary">Preview do Endereço</span>
                         <button type="button" (click)="profileAddressPreview.set(null)">
                           <ng-icon name="lucideX" class="text-xs text-muted-foreground" />
                         </button>
@@ -275,8 +279,9 @@ import { NgIcon } from '@ng-icons/core';
             </div>
           </div>
 
-          <!-- Right Column: Users OR Addresses -->
-          <div class="lg:col-span-7 space-y-4">
+          @if (isAdmin()) {
+            <!-- Right Column: Users OR Addresses (Admin Only) -->
+            <div class="lg:col-span-7 space-y-4">
             @if (rightPanelTab() === 'USERS') {
               <div class="flex items-center justify-between">
                 <div>
@@ -577,7 +582,8 @@ import { NgIcon } from '@ng-icons/core';
               </div>
             }
           </div>
-        </div>
+        }
+      </div>
       }
     </div>
   `,
@@ -587,6 +593,10 @@ export class ProfileComponent implements OnInit {
   protected readonly authService = inject(AuthService);
   private readonly userService = inject(UserService);
   private readonly addressService = inject(AddressService);
+
+  protected readonly isAdmin = computed(() => {
+    return this.authService.currentUser()?.role === 'ADMIN';
+  });
 
   protected readonly formatAddress = getFormattedAddress;
   protected readonly googleMapsUrl = getGoogleMapsUrl;
@@ -639,13 +649,14 @@ export class ProfileComponent implements OnInit {
       });
     }
 
-    if (this.authService.isAuthenticated()) {
+    if (this.authService.isAuthenticated() && this.isAdmin()) {
       this.loadUsers();
       this.loadAddresses();
     }
   }
 
   switchToAddressesTab(): void {
+    if (!this.isAdmin()) return;
     this.rightPanelTab.set('ADDRESSES');
     if (this.addresses().length === 0) {
       this.loadAddresses();
@@ -653,6 +664,7 @@ export class ProfileComponent implements OnInit {
   }
 
   loadUsers(): void {
+    if (!this.isAdmin()) return;
     this.userService.findAll().subscribe({
       next: (list) => {
         this.users.set(list);
@@ -661,6 +673,7 @@ export class ProfileComponent implements OnInit {
   }
 
   loadAddresses(): void {
+    if (!this.isAdmin()) return;
     this.addressError.set(null);
     this.addressService.findAll().subscribe({
       next: (list) => {
@@ -791,7 +804,9 @@ export class ProfileComponent implements OnInit {
         this.isSaving.set(false);
         this.authService.setCurrentUser(updated);
         this.saveMessage.set('Perfil atualizado com sucesso!');
-        this.loadUsers();
+        if (this.isAdmin()) {
+          this.loadUsers();
+        }
       },
       error: () => {
         this.isSaving.set(false);
@@ -800,6 +815,7 @@ export class ProfileComponent implements OnInit {
   }
 
   onToggleUserActive(user: UserResponse): void {
+    if (!this.isAdmin()) return;
     this.userService.toggleActive(user.id).subscribe({
       next: (updated) => {
         this.users.update((list) => list.map((u) => (u.id === updated.id ? updated : u)));
