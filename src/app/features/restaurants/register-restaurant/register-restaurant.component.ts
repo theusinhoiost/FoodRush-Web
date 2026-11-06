@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -43,6 +43,19 @@ import { NgIcon } from '@ng-icons/core';
         </div>
 
         <div hlmCardContent>
+          @if (authService.currentUser()?.role === 'RESTAURANT') {
+            <div class="mb-6 rounded-md border border-primary/30 bg-primary/10 p-4 text-sm text-foreground">
+              <p class="font-medium mb-1">Você já possui conta de Restaurante</p>
+              <p class="text-xs text-muted-foreground">
+                Sua conta já está configurada como Restaurante Parceiro. Você pode gerenciar seus pratos ou acessar a fila da cozinha.
+              </p>
+              <div class="mt-3 flex gap-2">
+                <a routerLink="/restaurants" hlmBtn size="sm">Ver Restaurantes</a>
+                <a routerLink="/kds" hlmBtn variant="outline" size="sm">Acessar Painel KDS</a>
+              </div>
+            </div>
+          }
+
           @if (!authService.isAuthenticated()) {
             <div class="mb-6 rounded-md border border-amber-500/50 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
               <p class="font-medium mb-1">Atenção: Autenticação Necessária</p>
@@ -135,20 +148,22 @@ import { NgIcon } from '@ng-icons/core';
               </div>
             </div>
 
-            <div class="space-y-1.5">
-              <label hlmLabel for="ownerId">ID do Proprietário (UUID) *</label>
-              <input
-                hlmInput
-                id="ownerId"
-                type="text"
-                formControlName="ownerId"
-                placeholder="22222222-2222-2222-2222-222222222222"
-                class="w-full"
-              />
-              <span class="text-xs text-muted-foreground">
-                Preenchido automaticamente com o usuário autenticado ou informe o UUID do proprietário.
-              </span>
-            </div>
+            @if (isAdmin()) {
+              <div class="space-y-1.5">
+                <label hlmLabel for="ownerId">ID do Proprietário (UUID) *</label>
+                <input
+                  hlmInput
+                  id="ownerId"
+                  type="text"
+                  formControlName="ownerId"
+                  placeholder="22222222-2222-2222-2222-222222222222"
+                  class="w-full"
+                />
+                <span class="text-xs text-muted-foreground">
+                  Preenchido automaticamente com o usuário autenticado ou informe o UUID do proprietário.
+                </span>
+              </div>
+            }
 
             <!-- Endereço do Estabelecimento -->
             <div class="pt-2 border-t border-border space-y-3">
@@ -309,6 +324,10 @@ export class RegisterRestaurantComponent implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly successMessage = signal<string | null>(null);
 
+  protected readonly isAdmin = computed(() => {
+    return this.authService.currentUser()?.role === 'ADMIN';
+  });
+
   protected readonly restaurantForm = this.fb.group({
     ownerId: ['', [Validators.required]],
     tradeName: ['', [Validators.required, Validators.maxLength(120)]],
@@ -359,6 +378,11 @@ export class RegisterRestaurantComponent implements OnInit {
   }
 
   onSubmit(): void {
+    const user = this.authService.currentUser();
+    if (!this.restaurantForm.get('ownerId')?.value && user?.id) {
+      this.restaurantForm.patchValue({ ownerId: user.id });
+    }
+
     if (this.restaurantForm.invalid) {
       this.restaurantForm.markAllAsTouched();
       return;
@@ -369,9 +393,16 @@ export class RegisterRestaurantComponent implements OnInit {
     this.successMessage.set(null);
 
     const val = this.restaurantForm.getRawValue();
+    const ownerId = val.ownerId?.trim() || user?.id;
+
+    if (!ownerId) {
+      this.errorMessage.set('Usuário não autenticado para definir o proprietário.');
+      this.isLoading.set(false);
+      return;
+    }
 
     const payload: RestaurantRequest = {
-      ownerId: val.ownerId!,
+      ownerId,
       tradeName: val.tradeName!,
       cnpj: val.cnpj!,
       phone: val.phone!,

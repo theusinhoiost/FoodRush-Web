@@ -56,7 +56,7 @@ import { NgIcon } from '@ng-icons/core';
           <span>Voltar para Restaurantes</span>
         </a>
 
-        @if (authService.isAuthenticated()) {
+        @if (canManageMenu()) {
           <button
             hlmBtn
             variant="outline"
@@ -178,7 +178,7 @@ import { NgIcon } from '@ng-icons/core';
         </div>
 
         <!-- New Menu Item Form Panel (Restaurant Owner / Admin) -->
-        @if (showNewItemModal()) {
+        @if (canManageMenu() && showNewItemModal()) {
           <div hlmCard class="mb-8 border-primary/30 bg-card shadow-lg rounded-2xl">
             <div hlmCardHeader>
               <h3 hlmCardTitle class="text-lg font-bold">Cadastrar Novo Prato no Cardápio</h3>
@@ -255,9 +255,15 @@ import { NgIcon } from '@ng-icons/core';
                   <ng-icon name="lucideUtensils" />
                 </div>
                 <h3 class="font-semibold text-base">Este restaurante ainda não possui itens no cardápio</h3>
-                <p class="text-xs text-muted-foreground mt-1">
-                  Clique em "Adicionar Prato ao Cardápio" acima para cadastrar o primeiro item.
-                </p>
+                @if (canManageMenu()) {
+                  <p class="text-xs text-muted-foreground mt-1">
+                    Clique em "Adicionar Prato ao Cardápio" acima para cadastrar o primeiro item.
+                  </p>
+                } @else {
+                  <p class="text-xs text-muted-foreground mt-1">
+                    Volte mais tarde para conferir as novidades.
+                  </p>
+                }
               </div>
             } @else {
               <div class="space-y-4">
@@ -313,7 +319,7 @@ import { NgIcon } from '@ng-icons/core';
                           <span>{{ activeCustomizingItem()?.id === item.id ? 'Fechar Opções' : 'Adicionar' }}</span>
                         </button>
 
-                        @if (authService.isAuthenticated()) {
+                        @if (canManageMenu()) {
                           <div class="flex items-center gap-1">
                             <button
                               type="button"
@@ -635,6 +641,11 @@ export class RestaurantDetailComponent implements OnInit {
   protected readonly cartService = inject(CartService);
   protected readonly authService = inject(AuthService);
 
+  protected readonly canManageMenu = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role === 'RESTAURANT' || role === 'ADMIN';
+  });
+
   protected readonly restaurantId = signal<string>('');
   protected readonly restaurant = signal<RestaurantResponse | null>(null);
   protected readonly menuItems = signal<MenuItemResponse[]>([]);
@@ -785,6 +796,7 @@ export class RestaurantDetailComponent implements OnInit {
   }
 
   onCreateMenuItem(): void {
+    if (!this.canManageMenu()) return;
     if (this.newDishForm.invalid) return;
     this.isSavingDish.set(true);
     const val = this.newDishForm.getRawValue();
@@ -820,6 +832,7 @@ export class RestaurantDetailComponent implements OnInit {
   }
 
   onToggleItemAvailable(item: MenuItemResponse): void {
+    if (!this.canManageMenu()) return;
     this.menuService.toggleAvailable(item.id).subscribe({
       next: (updated) => {
         this.menuItems.update((list) => list.map((i) => (i.id === updated.id ? updated : i)));
@@ -828,6 +841,7 @@ export class RestaurantDetailComponent implements OnInit {
   }
 
   onDeleteMenuItem(id: string): void {
+    if (!this.canManageMenu()) return;
     this.menuService.deleteMenuItem(id).subscribe({
       next: () => {
         this.menuItems.update((list) => list.filter((i) => i.id !== id));

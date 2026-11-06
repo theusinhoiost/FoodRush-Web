@@ -28,6 +28,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'kds',
+    loadComponent: () =>
+      import('./features/orders/order-list/order-list.component').then(
+        (m) => m.OrderListComponent
+      ),
+  },
+  {
     path: 'orders/:id',
     loadComponent: () =>
       import('./features/orders/order-detail/order-detail.component').then(

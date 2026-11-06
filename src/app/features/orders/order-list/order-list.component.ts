@@ -1,5 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { OrderService } from '../../../core/services/order.service';
@@ -30,40 +30,48 @@ import { NgIcon } from '@ng-icons/core';
       <!-- Header + Mode Switcher -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 class="text-3xl font-extrabold tracking-tight">Central de Pedidos & KDS</h1>
+          <h1 class="text-3xl font-extrabold tracking-tight">
+            {{ activeTab() === 'CUSTOMER' ? 'Meus Pedidos' : 'Painel KDS (Cozinha & Entregas)' }}
+          </h1>
           <p class="text-sm text-muted-foreground mt-1">
-            Acompanhe seus pedidos em tempo real ou gerencie a fila da cozinha (RabbitMQ Events)
+            {{
+              activeTab() === 'CUSTOMER'
+                ? 'Acompanhe o status e histórico das suas refeições em tempo real'
+                : 'Gerencie a fila de preparo e despacho de pedidos em tempo real (RabbitMQ Events)'
+            }}
           </p>
         </div>
 
-        <div class="inline-flex rounded-xl border border-border bg-muted/50 p-1">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
-            [class]="
-              activeTab() === 'CUSTOMER'
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            "
-            (click)="switchTab('CUSTOMER')"
-          >
-            <ng-icon name="lucideShoppingBag" class="text-sm" />
-            <span>Meus Pedidos (Cliente)</span>
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
-            [class]="
-              activeTab() === 'RESTAURANT'
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            "
-            (click)="switchTab('RESTAURANT')"
-          >
-            <ng-icon name="lucideChefHat" class="text-sm" />
-            <span>Painel KDS (Cozinha / Entregador)</span>
-          </button>
-        </div>
+        @if (canAccessKds()) {
+          <div class="inline-flex rounded-xl border border-border bg-muted/50 p-1">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
+              [class]="
+                activeTab() === 'CUSTOMER'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              "
+              (click)="switchTab('CUSTOMER')"
+            >
+              <ng-icon name="lucideShoppingBag" class="text-sm" />
+              <span>Meus Pedidos</span>
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
+              [class]="
+                activeTab() === 'RESTAURANT'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              "
+              (click)="switchTab('RESTAURANT')"
+            >
+              <ng-icon name="lucideChefHat" class="text-sm" />
+              <span>Painel KDS</span>
+            </button>
+          </div>
+        }
       </div>
 
       @if (!authService.isAuthenticated()) {
@@ -84,19 +92,28 @@ import { NgIcon } from '@ng-icons/core';
         <!-- TAB 1: CUSTOMER ORDERS -->
         @if (activeTab() === 'CUSTOMER') {
           <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
-            <div class="flex items-center gap-3 flex-1">
-              <span class="text-xs font-semibold text-muted-foreground shrink-0">ID do Cliente:</span>
-              <input
-                hlmInput
-                type="text"
-                [(ngModel)]="customerIdInput"
-                class="max-w-sm text-xs h-8"
-                placeholder="UUID do cliente"
-              />
-              <button hlmBtn size="xs" variant="outline" class="gap-1.5" (click)="loadCustomerOrders()">
-                <ng-icon name="lucideSearch" class="text-xs" />
-                <span>Buscar Pedidos</span>
-              </button>
+            <div class="flex items-center gap-3">
+              @if (isAdmin()) {
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold text-muted-foreground shrink-0">Filtrar por ID:</span>
+                  <input
+                    hlmInput
+                    type="text"
+                    [(ngModel)]="customerIdInput"
+                    class="max-w-xs text-xs h-8"
+                    placeholder="UUID do cliente"
+                  />
+                  <button hlmBtn size="xs" variant="outline" class="gap-1.5" (click)="loadCustomerOrders()">
+                    <ng-icon name="lucideSearch" class="text-xs" />
+                    <span>Buscar</span>
+                  </button>
+                </div>
+              } @else {
+                <button hlmBtn size="xs" variant="outline" class="gap-1.5" (click)="loadCustomerOrders()">
+                  <ng-icon name="lucideRefreshCw" class="text-xs" />
+                  <span>Atualizar Pedidos</span>
+                </button>
+              }
             </div>
             <span class="text-xs text-muted-foreground">
               Total: <strong>{{ orders().length }}</strong> pedido(s)
@@ -240,7 +257,7 @@ import { NgIcon } from '@ng-icons/core';
                   </div>
 
                   <div class="flex items-center gap-1.5">
-                    @if (getNextStatus(order.status); as nextSt) {
+                    @if (activeTab() === 'RESTAURANT' && getNextStatus(order.status); as nextSt) {
                       <button
                         hlmBtn
                         size="xs"
@@ -269,14 +286,24 @@ import { NgIcon } from '@ng-icons/core';
 export class OrderListComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly restaurantService = inject(RestaurantService);
+  private readonly route = inject(ActivatedRoute);
   protected readonly authService = inject(AuthService);
+
+  protected readonly canAccessKds = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role === 'RESTAURANT' || role === 'COURIER' || role === 'ADMIN';
+  });
+
+  protected readonly isAdmin = computed(() => {
+    return this.authService.currentUser()?.role === 'ADMIN';
+  });
 
   protected readonly activeTab = signal<'CUSTOMER' | 'RESTAURANT'>('CUSTOMER');
   protected readonly orders = signal<OrderResponse[]>([]);
   protected readonly restaurants = signal<RestaurantResponse[]>([]);
   protected readonly isLoading = signal(false);
 
-  protected customerIdInput = '11111111-1111-1111-1111-111111111111';
+  protected customerIdInput = '';
   protected readonly selectedRestaurantId = signal<string>('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
   protected readonly selectedStatus = signal<OrderStatus>('PAID');
 
@@ -295,8 +322,12 @@ export class OrderListComponent implements OnInit {
     if (user?.id) {
       this.customerIdInput = user.id;
     }
-    if (user?.role === 'RESTAURANT' || user?.role === 'COURIER') {
+
+    const isKdsRoute = this.route.snapshot.routeConfig?.path === 'kds';
+    if (isKdsRoute && this.canAccessKds()) {
       this.activeTab.set('RESTAURANT');
+    } else {
+      this.activeTab.set('CUSTOMER');
     }
 
     this.restaurantService.findAll().subscribe({
@@ -327,9 +358,11 @@ export class OrderListComponent implements OnInit {
   }
 
   loadCustomerOrders(): void {
-    if (!this.customerIdInput.trim()) return;
+    const user = this.authService.currentUser();
+    const customerId = this.customerIdInput.trim() || user?.id;
+    if (!customerId) return;
     this.isLoading.set(true);
-    this.orderService.getOrdersByCustomer(this.customerIdInput.trim()).subscribe({
+    this.orderService.getOrdersByCustomer(customerId).subscribe({
       next: (data) => {
         this.orders.set(data);
         this.isLoading.set(false);

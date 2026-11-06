@@ -192,22 +192,41 @@ import { NgIcon } from '@ng-icons/core';
               <div class="text-xl font-bold">{{ openCount() }} Abertos</div>
               <p class="text-xs text-muted-foreground">Aceitando pedidos agora mesmo</p>
             </div>
-            <div class="col-span-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 p-5 text-white shadow-md flex items-center justify-between">
-              <div class="space-y-1">
-                <span class="text-[11px] font-semibold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
-                  Restaurante Parceiro
-                </span>
-                <h3 class="font-bold text-base">Tem um restaurante?</h3>
-                <p class="text-xs text-white/85">Cadastre sua loja com geolocalização via CEP.</p>
+            @if (authService.currentUser()?.role === 'RESTAURANT') {
+              <div class="col-span-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 p-5 text-white shadow-md flex items-center justify-between">
+                <div class="space-y-1">
+                  <span class="text-[11px] font-semibold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                    Gestão da Cozinha
+                  </span>
+                  <h3 class="font-bold text-base">Painel de Pedidos KDS</h3>
+                  <p class="text-xs text-white/85">Acompanhe a fila de preparo e despacho em tempo real.</p>
+                </div>
+                <a
+                  routerLink="/kds"
+                  class="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-red-600 shadow hover:bg-white/90 transition"
+                >
+                  <span>Acessar KDS</span>
+                  <ng-icon name="lucideArrowRight" class="text-xs" />
+                </a>
               </div>
-              <a
-                routerLink="/register/restaurant"
-                class="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-red-600 shadow hover:bg-white/90 transition"
-              >
-                <span>Cadastrar</span>
-                <ng-icon name="lucideArrowRight" class="text-xs" />
-              </a>
-            </div>
+            } @else {
+              <div class="col-span-2 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 p-5 text-white shadow-md flex items-center justify-between">
+                <div class="space-y-1">
+                  <span class="text-[11px] font-semibold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                    Restaurante Parceiro
+                  </span>
+                  <h3 class="font-bold text-base">Tem um restaurante?</h3>
+                  <p class="text-xs text-white/85">Cadastre sua loja com geolocalização via CEP.</p>
+                </div>
+                <a
+                  routerLink="/register/restaurant"
+                  class="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-red-600 shadow hover:bg-white/90 transition"
+                >
+                  <span>Cadastrar</span>
+                  <ng-icon name="lucideArrowRight" class="text-xs" />
+                </a>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -401,7 +420,7 @@ import { NgIcon } from '@ng-icons/core';
 
               <!-- Card Footer -->
               <div hlmCardFooter class="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-                @if (authService.isAuthenticated()) {
+                @if (canManageRestaurant()) {
                   <button
                     hlmBtn
                     variant="ghost"
@@ -434,6 +453,11 @@ export class RestaurantListComponent implements OnInit {
   private readonly restaurantService = inject(RestaurantService);
   private readonly addressService = inject(AddressService);
   protected readonly authService = inject(AuthService);
+
+  protected readonly canManageRestaurant = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role === 'RESTAURANT' || role === 'ADMIN';
+  });
 
   protected readonly restaurants = signal<RestaurantResponse[]>([]);
   protected readonly isLoading = signal(false);
@@ -580,6 +604,7 @@ export class RestaurantListComponent implements OnInit {
   }
 
   onToggleStatus(restaurant: RestaurantResponse): void {
+    if (!this.canManageRestaurant()) return;
     this.restaurantService.toggleOpenStatus(restaurant.id).subscribe({
       next: (updated) => {
         this.restaurants.update((list) =>
