@@ -1,5 +1,6 @@
 export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:8080/api/v1',
+  production: true,
+  apiUrl: 'https://foodrush-backend-production-b263bc5d.up.railway.app/api/v1',
+  enableQuickLogin: false,
 };
 
