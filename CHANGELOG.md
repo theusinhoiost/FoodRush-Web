@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Mercado Pago Checkout Transparente (Credit Card & Pix Dual Tabs):**
+  - Integrated Mercado Pago JS SDK v2 for client-side card tokenization (`createCardToken`).
+  - Added Credit Card payment form with cardholder, expiration, CVV, CPF, and installments selection (1x to 6x).
+  - Added tab selector in `OrderDetailComponent` to switch seamlessly between Pix and Credit Card payments.
+  - Added `createCardPayment` and `getPaymentConfig` in `PaymentService`.
 - **Mercado Pago Checkout Transparente (Pix) Integration:**
   - Added `PaymentService` (`core/services/payment.service.ts`) with `createPixPayment` and `getPaymentByOrderId` methods.
   - Added `PaymentResponse`, `PaymentMethod`, and `PaymentStatus` contracts in `core/models/payment.models.ts`.
