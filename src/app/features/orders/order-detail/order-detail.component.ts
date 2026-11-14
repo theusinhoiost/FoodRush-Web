@@ -1,7 +1,8 @@
 import { Component, inject, signal, OnInit, OnDestroy, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, UpperCasePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { OrderService } from '../../../core/services/order.service';
 import { PaymentService } from '../../../core/services/payment.service';
@@ -9,11 +10,27 @@ import { OrderResponse, OrderStatus, PaymentResponse, ProblemDetail } from '../.
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmInputImports } from '@spartan-ng/helm/input';
+import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { NgIcon } from '@ng-icons/core';
+
+declare const MercadoPago: any;
 
 @Component({
   selector: 'app-order-detail',
-  imports: [RouterLink, CurrencyPipe, DatePipe, HlmCardImports, HlmBadgeImports, HlmButtonImports, NgIcon],
+  imports: [
+    RouterLink,
+    CurrencyPipe,
+    DatePipe,
+    UpperCasePipe,
+    FormsModule,
+    HlmCardImports,
+    HlmBadgeImports,
+    HlmButtonImports,
+    HlmInputImports,
+    HlmLabelImports,
+    NgIcon,
+  ],
   templateUrl: './order-detail.component.html',
 })
 export class OrderDetailComponent implements OnInit, OnDestroy {
@@ -28,11 +45,21 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
   protected readonly isUpdating = signal(false);
 
   // Payment State
+  protected readonly selectedPaymentMethod = signal<'PIX' | 'CREDIT_CARD'>('PIX');
   protected readonly payment = signal<PaymentResponse | null>(null);
   protected readonly isPaymentLoading = signal(false);
   protected readonly isGeneratingPix = signal(false);
+  protected readonly isProcessingCard = signal(false);
   protected readonly copiedPix = signal(false);
   protected readonly paymentError = signal<string | null>(null);
+
+  // Card Form State
+  protected cardNumber = '';
+  protected cardholderName = '';
+  protected cardExpiration = '';
+  protected securityCode = '';
+  protected cardCpf = '';
+  protected cardInstallments = 1;
 
   private pollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -70,7 +97,6 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
         } else {
           this.stopPolling();
           if (previousStatus === 'CREATED' && data.status === 'PAID') {
-            // Refetch payment to update payment badge
             this.loadPayment(data.id);
           }
         }
@@ -125,6 +151,92 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
       this.copiedPix.set(true);
       setTimeout(() => this.copiedPix.set(false), 3000);
     });
+  }
+
+  async payWithCreditCard(): Promise<void> {
+    const ord = this.order();
+    if (!ord || !this.isBrowser) return;
+
+    if (!this.cardNumber.trim() || !this.cardholderName.trim() || !this.cardExpiration.trim() || !this.securityCode.trim()) {
+      this.paymentError.set('Por favor, preencha todos os dados do cartão.');
+      return;
+    }
+
+    this.isProcessingCard.set(true);
+    this.paymentError.set(null);
+
+    try {
+      const config = await this.paymentService.getPaymentConfig().toPromise();
+      const publicKey = config?.publicKey;
+      if (!publicKey) {
+        throw new Error('Chave pública do Mercado Pago não configurada no servidor.');
+      }
+
+      if (typeof MercadoPago === 'undefined') {
+        throw new Error('SDK do Mercado Pago não carregou no navegador. Verifique sua conexão.');
+      }
+
+      const mp = new MercadoPago(publicKey, { locale: 'pt-BR' });
+
+      // Clean expiration MM/YY
+      const expParts = this.cardExpiration.split('/');
+      const month = expParts[0]?.trim();
+      let year = expParts[1]?.trim() || '';
+      if (year.length === 2) {
+        year = `20${year}`;
+      }
+
+      const cleanCard = this.cardNumber.replace(/\D/g, '');
+      const cleanCpf = (this.cardCpf || '12345678909').replace(/\D/g, '');
+
+      // Detect card brand
+      const cardBrand = this.detectCardBrand(cleanCard);
+
+      const cardTokenResponse = await mp.createCardToken({
+        cardNumber: cleanCard,
+        cardholderName: this.cardholderName.trim(),
+        cardExpirationMonth: month,
+        cardExpirationYear: year,
+        securityCode: this.securityCode.trim(),
+        identificationType: 'CPF',
+        identificationNumber: cleanCpf,
+      });
+
+      if (!cardTokenResponse?.id) {
+        throw new Error('Não foi possível validar os dados do cartão com o Mercado Pago.');
+      }
+
+      this.paymentService.createCardPayment(ord.id, {
+        token: cardTokenResponse.id,
+        installments: Number(this.cardInstallments) || 1,
+        paymentMethodId: cardBrand,
+      }).subscribe({
+        next: (pay) => {
+          this.payment.set(pay);
+          this.isProcessingCard.set(false);
+          this.loadOrder(true);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.isProcessingCard.set(false);
+          const problem = err.error as ProblemDetail | undefined;
+          this.paymentError.set(
+            problem?.detail || 'Pagamento recusado pelo Mercado Pago. Verifique os dados do cartão.'
+          );
+        },
+      });
+    } catch (err: any) {
+      this.isProcessingCard.set(false);
+      this.paymentError.set(err?.message || 'Erro ao processar pagamento com cartão.');
+    }
+  }
+
+  private detectCardBrand(cardNumber: string): string {
+    if (cardNumber.startsWith('4')) return 'visa';
+    if (/^5[1-5]/.test(cardNumber) || /^2[2-7]/.test(cardNumber)) return 'master';
+    if (/^3[47]/.test(cardNumber)) return 'amex';
+    if (/^(4011|4389|4514|4576|5041|5066|5090|6277|6362|6363)/.test(cardNumber)) return 'elo';
+    if (/^(606282|3841)/.test(cardNumber)) return 'hipercard';
+    return 'master';
   }
 
   private startPolling(orderId: string): void {
