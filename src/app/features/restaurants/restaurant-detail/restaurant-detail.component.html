@@ -553,6 +553,17 @@
                 </div>
               </div>
 
+              <!-- Payment Method Indicator -->
+              <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                <div class="flex items-center gap-1.5 font-semibold">
+                  <ng-icon name="lucideQrCode" class="text-sm text-emerald-500 shrink-0" />
+                  <span>Pagamento via Pix</span>
+                </div>
+                <span class="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
+                  Mercado Pago
+                </span>
+              </div>
+
               @if (!authService.isAuthenticated()) {
                 <a routerLink="/login" hlmBtn class="w-full gap-1.5">
                   <ng-icon name="lucideLogIn" class="text-sm" />

@@ -51,6 +51,8 @@ import {
   lucideNavigation,
   lucideCompass,
   lucideEye,
+  lucideQrCode,
+  lucideCopy,
 } from '@ng-icons/lucide';
 
 export const appConfig: ApplicationConfig = {
@@ -105,6 +107,8 @@ export const appConfig: ApplicationConfig = {
       lucideNavigation,
       lucideCompass,
       lucideEye,
+      lucideQrCode,
+      lucideCopy,
     }),
   ],
 };
