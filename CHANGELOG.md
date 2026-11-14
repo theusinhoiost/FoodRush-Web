@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Mercado Pago Checkout Transparente (Pix) Integration:**
+  - Added `PaymentService` (`core/services/payment.service.ts`) with `createPixPayment` and `getPaymentByOrderId` methods.
+  - Added `PaymentResponse`, `PaymentMethod`, and `PaymentStatus` contracts in `core/models/payment.models.ts`.
+  - Added Pix payment card in `OrderDetailComponent` (`/orders/:id`) with:
+    - Base64 QR Code visualization.
+    - One-click "Pix Copia e Cola" clipboard copy with feedback toast.
+    - Real-time polling check while status is `CREATED` to automatically detect webhook confirmation.
+    - Visual indicators for Pix payment approval (`PAID` status badge).
+  - Added Pix payment method indicator in the shopping cart checkout drawer (`RestaurantDetailComponent`).
+  - Registered `lucideQrCode` and `lucideCopy` icons in `app.config.ts`.
 - Dedicated `/kds` route for the Kitchen Display System (KDS) and delivery queue management.
 - Automatic `ownerId` resolution from the authenticated user session when registering a partner restaurant.
 - Automatic customer order loading in `/orders` using the authenticated user's ID without requiring manual UUID input.
