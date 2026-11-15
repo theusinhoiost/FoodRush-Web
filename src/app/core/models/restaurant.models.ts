@@ -19,6 +19,9 @@ export interface RestaurantResponse {
   longitude?: number;
   address?: AddressResponse;
   isOpen: boolean;
+  commissionRate?: number;
+  mpConnected?: boolean;
+  mpCollectorId?: string;
 }
 
 export interface RestaurantPatchRequest {
