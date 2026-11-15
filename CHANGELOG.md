@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Restaurant Mercado Pago Split Management Card (`features/restaurants/restaurant-detail`):**
+  - Added dedicated Split Payment management card visible to restaurant owners and admins on `/restaurants/:id`.
+  - Added real-time connection status display (Active vs Pending) and FoodRush commission percentage rate.
+  - Added **"Ativar Modo Teste (1 Clique)"** button allowing instant attachment of test collector accounts in sandbox without leaving the platform.
+  - Added official OAuth Connect and Disconnect buttons with responsive feedback toasts.
+  - Updated `RestaurantResponse` model with `commissionRate`, `mpConnected`, and `mpCollectorId`.
+
+### Added
 - **Superadmin Management Dashboard (`features/admin/admin-dashboard`, `core/guards/admin.guard`, `core/services/admin.service`):**
   - Added dedicated `/admin` route protected by `adminGuard` for users with role `ADMIN`.
   - Added real-time financial metrics dashboard: Gross Merchandise Value (GMV), FoodRush Split Platform Fees retained, restaurant count, and customer metrics.

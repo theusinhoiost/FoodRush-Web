@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CardPaymentRequest, PaymentConfigResponse, PaymentResponse } from '../models';
+import { CardPaymentRequest, PaymentConfigResponse, PaymentResponse, RestaurantResponse } from '../models';
 
 @Injectable({
   providedIn: 'root',
@@ -33,15 +33,19 @@ export class PaymentService {
     });
   }
 
-  connectMpAccount(restaurantId: string, code?: string, collectorId?: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/connect/callback`, {
+  connectMpAccount(restaurantId: string, code?: string, collectorId?: string): Observable<RestaurantResponse> {
+    return this.http.post<RestaurantResponse>(`${this.baseUrl}/connect/callback`, {
       restaurantId,
       code,
       collectorId,
     });
   }
 
-  disconnectMpAccount(restaurantId: string): Observable<any> {
-    return this.http.delete<any>(`${this.baseUrl}/connect/disconnect/${restaurantId}`);
+  quickConnectMp(restaurantId: string): Observable<RestaurantResponse> {
+    return this.http.post<RestaurantResponse>(`${this.baseUrl}/connect/quick-connect/${restaurantId}`, {});
+  }
+
+  disconnectMpAccount(restaurantId: string): Observable<RestaurantResponse> {
+    return this.http.delete<RestaurantResponse>(`${this.baseUrl}/connect/disconnect/${restaurantId}`);
   }
 }
