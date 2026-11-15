@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Interactive Payment Method Selector in Shopping Cart Drawer (`features/restaurants/restaurant-detail`, `features/orders/order-detail`):**
+  - Added interactive payment method toggle in the cart drawer allowing customers to choose between Pix and Credit Card before order confirmation.
+  - Automatically forwards the customer's selection via query parameter (`?method=CREDIT_CARD` or `?method=PIX`) to `/orders/:id`, pre-opening the chosen checkout tab.
+
+### Added
 - **Mercado Pago Checkout Transparente (Credit Card & Pix Dual Tabs):**
   - Integrated Mercado Pago JS SDK v2 for client-side card tokenization (`createCardToken`).
   - Added Credit Card payment form with cardholder, expiration, CVV, CPF, and installments selection (1x to 6x).
