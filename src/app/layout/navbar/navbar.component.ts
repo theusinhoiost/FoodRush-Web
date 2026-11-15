@@ -29,6 +29,10 @@ export class NavbarComponent {
     return role === 'RESTAURANT' || role === 'COURIER' || role === 'ADMIN';
   });
 
+  protected readonly isAdmin = computed(() => {
+    return this.authService.currentUser()?.role === 'ADMIN';
+  });
+
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
       const saved = localStorage.getItem('foodrush_theme');
