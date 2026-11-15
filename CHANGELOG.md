@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Superadmin Management Dashboard (`features/admin/admin-dashboard`, `core/guards/admin.guard`, `core/services/admin.service`):**
+  - Added dedicated `/admin` route protected by `adminGuard` for users with role `ADMIN`.
+  - Added real-time financial metrics dashboard: Gross Merchandise Value (GMV), FoodRush Split Platform Fees retained, restaurant count, and customer metrics.
+  - Added Restaurant & Split Management tab with live commission percentage editing (default 10.00%) and Mercado Pago Connect status indicators.
+  - Added Customer & User Management tab with role filtering, search, and instant activation/blocking toggles.
+  - Added prominent Superadmin navigation pills in `NavbarComponent` (desktop and mobile) and quick shortcut in `ProfileComponent`.
+- **Mercado Pago Connect OAuth Integration (`core/services/payment.service`):**
+  - Added OAuth helper methods for restaurant partner account authorization, connection callback, and disconnection.
+
+### Added
 - **Interactive Payment Method Selector in Shopping Cart Drawer (`features/restaurants/restaurant-detail`, `features/orders/order-detail`):**
   - Added interactive payment method toggle in the cart drawer allowing customers to choose between Pix and Credit Card before order confirmation.
   - Automatically forwards the customer's selection via query parameter (`?method=CREDIT_CARD` or `?method=PIX`) to `/orders/:id`, pre-opening the chosen checkout tab.

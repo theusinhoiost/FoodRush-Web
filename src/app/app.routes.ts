@@ -66,6 +66,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'admin',
+    canActivate: [() => import('./core/guards/admin.guard').then((m) => m.adminGuard)],
+    loadComponent: () =>
+      import('./features/admin/admin-dashboard/admin-dashboard.component').then(
+        (m) => m.AdminDashboardComponent
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'restaurants',
   },
