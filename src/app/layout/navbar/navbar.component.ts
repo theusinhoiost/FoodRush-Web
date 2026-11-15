@@ -24,9 +24,14 @@ export class NavbarComponent {
     return role !== 'RESTAURANT';
   });
 
+  protected readonly canOrder = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role !== 'RESTAURANT';
+  });
+
   protected readonly canAccessKds = computed(() => {
     const role = this.authService.currentUser()?.role;
-    return role === 'RESTAURANT' || role === 'COURIER' || role === 'ADMIN';
+    return role === 'RESTAURANT' || role === 'ADMIN';
   });
 
   protected readonly isAdmin = computed(() => {

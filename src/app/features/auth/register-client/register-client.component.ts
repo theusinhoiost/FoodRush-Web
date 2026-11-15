@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -56,6 +56,11 @@ export class RegisterClientComponent {
     { value: 'RESTAURANT', label: 'Restaurante', icon: 'lucideChefHat' },
     { value: 'COURIER', label: 'Entregador', icon: 'lucideBike' },
   ];
+
+  protected readonly selectedRoleLabel = computed(() => {
+    const found = this.roles.find((r) => r.value === this.selectedRole());
+    return found ? found.label : 'Cliente';
+  });
 
   protected readonly registerForm = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],

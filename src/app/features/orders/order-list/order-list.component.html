@@ -14,7 +14,7 @@
       </p>
     </div>
 
-    @if (canAccessKds()) {
+    @if (isAdmin()) {
       <div class="inline-flex rounded-xl border border-border bg-muted/50 p-1">
         <button
           type="button"
@@ -99,7 +99,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs font-semibold text-muted-foreground">Restaurante:</span>
-            @for (rest of restaurants(); track rest.id) {
+            @for (rest of availableRestaurants(); track rest.id) {
               <button
                 type="button"
                 (click)="selectRestaurantForKds(rest.id)"
@@ -112,6 +112,9 @@
               >
                 {{ rest.tradeName }}
               </button>
+            }
+            @if (availableRestaurants().length === 0) {
+              <span class="text-xs text-amber-600 font-medium">Nenhum restaurante vinculado à sua conta.</span>
             }
           </div>
           <button hlmBtn size="xs" variant="outline" class="gap-1.5" (click)="loadRestaurantOrders()">

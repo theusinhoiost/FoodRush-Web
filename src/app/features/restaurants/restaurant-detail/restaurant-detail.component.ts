@@ -9,7 +9,6 @@ import { MenuService } from '../../../core/services/menu.service';
 import { OrderService } from '../../../core/services/order.service';
 import { CartService } from '../../../core/services/cart.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { PaymentService } from '../../../core/services/payment.service';
 import {
   ComplementItemDetail,
   DeliveryFeeEstimateResponse,
@@ -57,15 +56,16 @@ export class RestaurantDetailComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   protected readonly cartService = inject(CartService);
   protected readonly authService = inject(AuthService);
-  private readonly paymentService = inject(PaymentService);
 
   protected readonly canManageMenu = computed(() => {
     const role = this.authService.currentUser()?.role;
     return role === 'RESTAURANT' || role === 'ADMIN';
   });
 
-  protected readonly isConnectingMp = signal(false);
-  protected readonly mpFeedback = signal<string | null>(null);
+  protected readonly canOrder = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role !== 'RESTAURANT';
+  });
 
   protected readonly restaurantId = signal<string>('');
   protected readonly restaurant = signal<RestaurantResponse | null>(null);
@@ -311,57 +311,6 @@ export class RestaurantDetailComponent implements OnInit {
         this.checkoutError.set(
           problem?.detail || 'Não foi possível finalizar o pedido. Verifique o estoque ou login.'
         );
-      },
-    });
-  }
-
-  onQuickConnectMp(): void {
-    const rId = this.restaurantId();
-    if (!rId) return;
-    this.isConnectingMp.set(true);
-    this.paymentService.quickConnectMp(rId).subscribe({
-      next: (updated) => {
-        this.restaurant.set(updated);
-        this.isConnectingMp.set(false);
-        this.mpFeedback.set(`Conta Mercado Pago (${updated.mpCollectorId}) associada com sucesso para repasse automático!`);
-        setTimeout(() => this.mpFeedback.set(null), 5000);
-      },
-      error: () => {
-        this.isConnectingMp.set(false);
-        this.mpFeedback.set('Erro ao associar conta teste do Mercado Pago.');
-        setTimeout(() => this.mpFeedback.set(null), 5000);
-      },
-    });
-  }
-
-  onOfficialConnectMp(): void {
-    const rId = this.restaurantId();
-    if (!rId) return;
-    this.paymentService.getConnectAuthorizeUrl(rId).subscribe({
-      next: (res) => {
-        if (res?.authorizeUrl) {
-          window.location.href = res.authorizeUrl;
-        }
-      },
-      error: () => {
-        this.mpFeedback.set('Não foi possível obter URL de autorização do Mercado Pago.');
-      },
-    });
-  }
-
-  onDisconnectMp(): void {
-    const rId = this.restaurantId();
-    if (!rId) return;
-    this.isConnectingMp.set(true);
-    this.paymentService.disconnectMpAccount(rId).subscribe({
-      next: (updated) => {
-        this.restaurant.set(updated);
-        this.isConnectingMp.set(false);
-        this.mpFeedback.set('Conta Mercado Pago desconectada.');
-        setTimeout(() => this.mpFeedback.set(null), 5000);
-      },
-      error: () => {
-        this.isConnectingMp.set(false);
       },
     });
   }
