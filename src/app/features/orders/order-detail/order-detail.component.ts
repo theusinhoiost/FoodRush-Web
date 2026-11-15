@@ -73,6 +73,10 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    const methodParam = this.route.snapshot.queryParamMap.get('method');
+    if (methodParam === 'CREDIT_CARD' || methodParam === 'PIX') {
+      this.selectedPaymentMethod.set(methodParam);
+    }
     this.loadOrder();
   }
 
