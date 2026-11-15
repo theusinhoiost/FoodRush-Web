@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Mercado Pago Connect Relocated to Merchant Profile (`features/profile`, `features/restaurants/restaurant-detail`):**
+  - Moved the Mercado Pago Split Payment management card from `/restaurants/:id` to `/profile`.
+  - Added restaurant detection for logged-in `RESTAURANT` and `ADMIN` users to manage split connections, view commission rates, and execute 1-click test connect or OAuth flows directly from their profile.
+- **Role-Based Order & Cart Restrictions (`layout/navbar`, `features/restaurants/restaurant-detail`):**
+  - Restricted users with role `RESTAURANT` from placing delivery orders: hidden "Meus Pedidos" navigation links, quick cart button, "+ Adicionar à Sacola" buttons, and cart drawer on `/restaurants/:id`.
+  - Expanded menu catalog to full width for restaurant owners viewing their dishes.
+- **KDS Kitchen Display System Exclusivity & Scoping (`core/guards/kds.guard`, `features/orders/order-list`, `layout/navbar`):**
+  - Restricted KDS access exclusively to `RESTAURANT` and `ADMIN` roles, adding `kdsGuard` route protection.
+  - Automatically filters KDS view to orders for the logged-in restaurant owner's restaurant ID.
+  - Hidden client order tabs from the KDS screen for restaurant owners.
+- **Human-Friendly Client Registration Submit Button (`features/auth/register-client`):**
+  - Replaced internal enum text `"Finalizar Cadastro como CLIENT"` with user-friendly `"Cadastrar como Cliente / Restaurante / Entregador"`.
+
+### Added
 - **Restaurant Mercado Pago Split Management Card (`features/restaurants/restaurant-detail`):**
   - Added dedicated Split Payment management card visible to restaurant owners and admins on `/restaurants/:id`.
   - Added real-time connection status display (Active vs Pending) and FoodRush commission percentage rate.

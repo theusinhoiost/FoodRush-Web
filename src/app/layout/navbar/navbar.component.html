@@ -27,7 +27,7 @@
           <ng-icon name="lucideUtensils" class="text-base" />
           <span>Restaurantes</span>
         </a>
-        @if (authService.isAuthenticated()) {
+        @if (authService.isAuthenticated() && canOrder()) {
           <a
             routerLink="/orders"
             routerLinkActive="bg-accent text-accent-foreground font-semibold"
@@ -83,7 +83,7 @@
     <!-- Right Side Actions -->
     <div class="flex items-center gap-2.5">
       <!-- Cart Quick Button -->
-      @if (cartService.totalItems() > 0 && cartService.restaurantId()) {
+      @if (canOrder() && cartService.totalItems() > 0 && cartService.restaurantId()) {
         <a
           [routerLink]="['/restaurants', cartService.restaurantId()]"
           class="flex items-center gap-2 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/25 px-3.5 py-1.5 text-xs font-semibold text-primary transition-all"
@@ -151,7 +151,7 @@
       <ng-icon name="lucideUtensils" class="text-base" />
       <span>Início</span>
     </a>
-    @if (authService.isAuthenticated()) {
+    @if (authService.isAuthenticated() && canOrder()) {
       <a routerLink="/orders" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
         <ng-icon name="lucidePackage" class="text-base" />
         <span>Pedidos</span>

@@ -35,7 +35,19 @@ export class OrderListComponent implements OnInit {
 
   protected readonly canAccessKds = computed(() => {
     const role = this.authService.currentUser()?.role;
-    return role === 'RESTAURANT' || role === 'COURIER' || role === 'ADMIN';
+    return role === 'RESTAURANT' || role === 'ADMIN';
+  });
+
+  protected readonly isRestaurantOwner = computed(() => {
+    return this.authService.currentUser()?.role === 'RESTAURANT';
+  });
+
+  protected readonly availableRestaurants = computed(() => {
+    const user = this.authService.currentUser();
+    if (user?.role === 'RESTAURANT') {
+      return this.restaurants().filter((r) => r.ownerId === user.id);
+    }
+    return this.restaurants();
   });
 
   protected readonly isAdmin = computed(() => {
@@ -68,7 +80,7 @@ export class OrderListComponent implements OnInit {
     }
 
     const isKdsRoute = this.route.snapshot.routeConfig?.path === 'kds';
-    if (isKdsRoute && this.canAccessKds()) {
+    if (user?.role === 'RESTAURANT' || (isKdsRoute && this.canAccessKds())) {
       this.activeTab.set('RESTAURANT');
     } else {
       this.activeTab.set('CUSTOMER');
@@ -77,8 +89,14 @@ export class OrderListComponent implements OnInit {
     this.restaurantService.findAll().subscribe({
       next: (list) => {
         this.restaurants.set(list);
-        if (list.length > 0 && !this.selectedRestaurantId()) {
-          this.selectedRestaurantId.set(list[0].id);
+        const myRestaurants = user?.role === 'RESTAURANT'
+          ? list.filter((r) => r.ownerId === user.id)
+          : list;
+        if (myRestaurants.length > 0) {
+          this.selectedRestaurantId.set(myRestaurants[0].id);
+          if (this.activeTab() === 'RESTAURANT') {
+            this.loadRestaurantOrders();
+          }
         }
       },
     });

@@ -29,6 +29,7 @@ export const routes: Routes = [
   },
   {
     path: 'kds',
+    canActivate: [() => import('./core/guards/kds.guard').then((m) => m.kdsGuard)],
     loadComponent: () =>
       import('./features/orders/order-list/order-list.component').then(
         (m) => m.OrderListComponent

@@ -6,9 +6,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
 import { UserService } from '../../core/services/user.service';
 import { AddressService } from '../../core/services/address.service';
+import { RestaurantService } from '../../core/services/restaurant.service';
+import { PaymentService } from '../../core/services/payment.service';
 import {
   AddressResponse,
   ProblemDetail,
+  RestaurantResponse,
   UserPatchRequest,
   UserResponse,
   getFormattedAddress,
@@ -43,10 +46,25 @@ export class ProfileComponent implements OnInit {
   protected readonly authService = inject(AuthService);
   private readonly userService = inject(UserService);
   private readonly addressService = inject(AddressService);
+  private readonly restaurantService = inject(RestaurantService);
+  private readonly paymentService = inject(PaymentService);
 
   protected readonly isAdmin = computed(() => {
     return this.authService.currentUser()?.role === 'ADMIN';
   });
+
+  protected readonly isRestaurantOwner = computed(() => {
+    return this.authService.currentUser()?.role === 'RESTAURANT';
+  });
+
+  protected readonly canManageRestaurant = computed(() => {
+    const role = this.authService.currentUser()?.role;
+    return role === 'RESTAURANT' || role === 'ADMIN';
+  });
+
+  protected readonly myRestaurant = signal<RestaurantResponse | null>(null);
+  protected readonly isConnectingMp = signal(false);
+  protected readonly mpFeedback = signal<string | null>(null);
 
   protected readonly formatAddress = getFormattedAddress;
   protected readonly googleMapsUrl = getGoogleMapsUrl;
@@ -103,6 +121,76 @@ export class ProfileComponent implements OnInit {
       this.loadUsers();
       this.loadAddresses();
     }
+
+    if (this.authService.isAuthenticated() && this.canManageRestaurant()) {
+      this.loadMyRestaurant();
+    }
+  }
+
+  loadMyRestaurant(): void {
+    const user = this.authService.currentUser();
+    if (!user?.id) return;
+    this.restaurantService.findAll().subscribe({
+      next: (list) => {
+        const found = list.find((r) => r.ownerId === user.id);
+        if (found) {
+          this.myRestaurant.set(found);
+        } else if (this.isAdmin() && list.length > 0) {
+          this.myRestaurant.set(list[0]);
+        }
+      },
+    });
+  }
+
+  onQuickConnectMp(): void {
+    const r = this.myRestaurant();
+    if (!r?.id) return;
+    this.isConnectingMp.set(true);
+    this.paymentService.quickConnectMp(r.id).subscribe({
+      next: (updated) => {
+        this.myRestaurant.set(updated);
+        this.isConnectingMp.set(false);
+        this.mpFeedback.set(`Conta Mercado Pago (${updated.mpCollectorId}) associada com sucesso para repasse automático!`);
+        setTimeout(() => this.mpFeedback.set(null), 5000);
+      },
+      error: () => {
+        this.isConnectingMp.set(false);
+        this.mpFeedback.set('Erro ao associar conta teste do Mercado Pago.');
+        setTimeout(() => this.mpFeedback.set(null), 5000);
+      },
+    });
+  }
+
+  onOfficialConnectMp(): void {
+    const r = this.myRestaurant();
+    if (!r?.id) return;
+    this.paymentService.getConnectAuthorizeUrl(r.id).subscribe({
+      next: (res) => {
+        if (res?.authorizeUrl) {
+          window.location.href = res.authorizeUrl;
+        }
+      },
+      error: () => {
+        this.mpFeedback.set('Não foi possível obter URL de autorização do Mercado Pago.');
+      },
+    });
+  }
+
+  onDisconnectMp(): void {
+    const r = this.myRestaurant();
+    if (!r?.id) return;
+    this.isConnectingMp.set(true);
+    this.paymentService.disconnectMpAccount(r.id).subscribe({
+      next: (updated) => {
+        this.myRestaurant.set(updated);
+        this.isConnectingMp.set(false);
+        this.mpFeedback.set('Conta Mercado Pago desconectada.');
+        setTimeout(() => this.mpFeedback.set(null), 5000);
+      },
+      error: () => {
+        this.isConnectingMp.set(false);
+      },
+    });
   }
 
   switchToAddressesTab(): void {
