@@ -1,0 +1,403 @@
+<div class="container mx-auto max-w-7xl px-4 py-8 space-y-8">
+  <!-- Superadmin Header -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border">
+    <div class="space-y-1">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+          <ng-icon name="lucideShieldCheck" class="text-sm" />
+          <span>PAINEL SUPERADMIN</span>
+        </span>
+        <span class="text-xs text-muted-foreground">• FoodRush Core Management</span>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+        Controle Geral da Plataforma & Split Payment
+      </h1>
+      <p class="text-xs md:text-sm text-muted-foreground">
+        Gerencie todos os restaurantes, configure as porcentagens de intermediação (Split Mercado Pago) e controle as contas de clientes e parceiros.
+      </p>
+    </div>
+
+    <button
+      hlmBtn
+      variant="outline"
+      size="sm"
+      class="gap-1.5 self-start md:self-auto"
+      (click)="loadData()"
+      [disabled]="isLoading()"
+    >
+      <ng-icon name="lucideRefreshCw" class="text-xs" [class.animate-spin]="isLoading()" />
+      <span>Atualizar Dados</span>
+    </button>
+  </div>
+
+  <!-- Feedback Alert -->
+  @if (feedbackMessage()) {
+    <div class="rounded-xl border border-primary/30 bg-primary/10 p-3.5 text-xs text-primary font-medium flex items-center justify-between animate-fade-in">
+      <div class="flex items-center gap-2">
+        <ng-icon name="lucideCheckCircle2" class="text-base text-primary" />
+        <span>{{ feedbackMessage() }}</span>
+      </div>
+      <button type="button" class="text-primary hover:underline text-[11px]" (click)="feedbackMessage.set(null)">Fechar</button>
+    </div>
+  }
+
+  <!-- Platform Financial & Operational Metrics Cards -->
+  @if (metrics(); as m) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Total GMV -->
+      <div hlmCard class="p-5 space-y-2 border-border/80 shadow-xs">
+        <div class="flex items-center justify-between text-muted-foreground text-xs font-semibold">
+          <span>Volume Transacionado (GMV)</span>
+          <ng-icon name="lucideShoppingBag" class="text-base text-primary" />
+        </div>
+        <div class="text-2xl font-black text-foreground">
+          {{ m.totalGrossVolume | currency:'BRL':'symbol':'1.2-2' }}
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          Total de pedidos realizados na plataforma
+        </p>
+      </div>
+
+      <!-- FoodRush Split Profit -->
+      <div hlmCard class="p-5 space-y-2 border-emerald-500/30 bg-emerald-500/5 shadow-xs">
+        <div class="flex items-center justify-between text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+          <span>Receita da Plataforma (Split)</span>
+          <ng-icon name="lucideSparkles" class="text-base text-emerald-500" />
+        </div>
+        <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+          {{ m.totalPlatformFees | currency:'BRL':'symbol':'1.2-2' }}
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          Comissão retida automaticamente no Mercado Pago
+        </p>
+      </div>
+
+      <!-- Restaurants & MP Connected -->
+      <div hlmCard class="p-5 space-y-2 border-border/80 shadow-xs">
+        <div class="flex items-center justify-between text-muted-foreground text-xs font-semibold">
+          <span>Restaurantes Cadastrados</span>
+          <ng-icon name="lucideStore" class="text-base text-amber-500" />
+        </div>
+        <div class="text-2xl font-black text-foreground flex items-baseline gap-2">
+          <span>{{ m.totalRestaurants }}</span>
+          <span class="text-xs font-semibold text-emerald-600">({{ m.connectedRestaurants }} com Split ativo)</span>
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          Lojas ativas e conectadas ao gateway
+        </p>
+      </div>
+
+      <!-- Users & Orders -->
+      <div hlmCard class="p-5 space-y-2 border-border/80 shadow-xs">
+        <div class="flex items-center justify-between text-muted-foreground text-xs font-semibold">
+          <span>Usuários & Pedidos</span>
+          <ng-icon name="lucideUser" class="text-base text-blue-500" />
+        </div>
+        <div class="text-2xl font-black text-foreground flex items-baseline gap-2">
+          <span>{{ m.totalUsers }}</span>
+          <span class="text-xs font-normal text-muted-foreground">usuários • {{ m.totalOrders }} pedidos</span>
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          Clientes, entregadores e administradores
+        </p>
+      </div>
+    </div>
+  }
+
+  <!-- Navigation Tabs -->
+  <div class="flex items-center gap-2 border-b border-border pb-px">
+    <button
+      type="button"
+      (click)="activeTab.set('RESTAURANTS')"
+      class="pb-2.5 px-3 text-xs md:text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer"
+      [class]="
+        activeTab() === 'RESTAURANTS'
+          ? 'border-primary text-primary'
+          : 'border-transparent text-muted-foreground hover:text-foreground'
+      "
+    >
+      <ng-icon name="lucideStore" class="text-base" />
+      <span>Restaurantes & Split Payment ({{ restaurants().length }})</span>
+    </button>
+
+    <button
+      type="button"
+      (click)="activeTab.set('USERS')"
+      class="pb-2.5 px-3 text-xs md:text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer"
+      [class]="
+        activeTab() === 'USERS'
+          ? 'border-primary text-primary'
+          : 'border-transparent text-muted-foreground hover:text-foreground'
+      "
+    >
+      <ng-icon name="lucideUser" class="text-base" />
+      <span>Clientes & Usuários ({{ users().length }})</span>
+    </button>
+  </div>
+
+  <!-- TAB 1: RESTAURANTES & TAXA DE COMISSÃO -->
+  @if (activeTab() === 'RESTAURANTS') {
+    <div class="space-y-4">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div class="relative flex-1 max-w-md">
+          <input
+            hlmInput
+            type="text"
+            placeholder="Buscar por nome, proprietário, CNPJ ou e-mail..."
+            [(ngModel)]="restaurantSearch"
+            class="w-full text-xs"
+          />
+        </div>
+        <div class="text-xs text-muted-foreground">
+          Mostrando {{ filteredRestaurants().length }} de {{ restaurants().length }} restaurantes
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-muted/60 text-muted-foreground font-semibold border-b border-border uppercase tracking-wider text-[11px]">
+              <tr>
+                <th class="p-3.5">Restaurante</th>
+                <th class="p-3.5">Proprietário</th>
+                <th class="p-3.5">Status Loja</th>
+                <th class="p-3.5">Mercado Pago Split</th>
+                <th class="p-3.5 text-center">Comissão FoodRush (%)</th>
+                <th class="p-3.5 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border/60">
+              @for (rest of filteredRestaurants(); track rest.id) {
+                <tr class="hover:bg-muted/20 transition-colors">
+                  <!-- Trade Name & CNPJ -->
+                  <td class="p-3.5">
+                    <div class="font-bold text-foreground text-sm">{{ rest.tradeName }}</div>
+                    <div class="text-[11px] text-muted-foreground">CNPJ: {{ rest.cnpj }} • Tel: {{ rest.phone }}</div>
+                  </td>
+
+                  <!-- Owner -->
+                  <td class="p-3.5">
+                    <div class="font-medium text-foreground">{{ rest.ownerName }}</div>
+                    <div class="text-[11px] text-muted-foreground">{{ rest.ownerEmail }}</div>
+                  </td>
+
+                  <!-- Store Open/Closed -->
+                  <td class="p-3.5">
+                    @if (rest.isOpen) {
+                      <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                        Aberto
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                        <span class="h-1.5 w-1.5 rounded-full bg-muted-foreground"></span>
+                        Fechado
+                      </span>
+                    }
+                  </td>
+
+                  <!-- MP Split Connection Status -->
+                  <td class="p-3.5">
+                    @if (rest.mpConnected) {
+                      <div class="space-y-0.5">
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          <ng-icon name="lucideCheck" class="text-xs text-emerald-500" />
+                          Split Conectado
+                        </span>
+                        <div class="text-[10px] text-muted-foreground font-mono">
+                          ID: {{ rest.mpCollectorId || 'Ativo' }}
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="space-y-0.5">
+                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                          <ng-icon name="lucideClock" class="text-xs" />
+                          Conexão Pendente
+                        </span>
+                        <div class="text-[10px] text-muted-foreground">
+                          Conta MP não vinculada
+                        </div>
+                      </div>
+                    }
+                  </td>
+
+                  <!-- Commission Rate Input (10% default) -->
+                  <td class="p-3.5 text-center">
+                    <div class="inline-flex items-center gap-1 justify-center">
+                      <input
+                        hlmInput
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        [(ngModel)]="commissionEdits[rest.id]"
+                        class="w-20 text-center font-bold text-xs h-8"
+                      />
+                      <span class="font-bold text-muted-foreground">%</span>
+                    </div>
+                  </td>
+
+                  <!-- Save Button -->
+                  <td class="p-3.5 text-right">
+                    <button
+                      hlmBtn
+                      size="xs"
+                      class="gap-1 shadow-xs"
+                      [disabled]="isSavingCommission() === rest.id"
+                      (click)="saveCommission(rest)"
+                    >
+                      @if (isSavingCommission() === rest.id) {
+                        <ng-icon name="lucideRefreshCw" class="text-xs animate-spin" />
+                        <span>Salvando...</span>
+                      } @else {
+                        <ng-icon name="lucideCheck" class="text-xs" />
+                        <span>Salvar %</span>
+                      }
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- TAB 2: CLIENTES & USUÁRIOS -->
+  @if (activeTab() === 'USERS') {
+    <div class="space-y-4">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 max-w-xl">
+          <input
+            hlmInput
+            type="text"
+            placeholder="Buscar usuário por nome, e-mail ou CPF..."
+            [(ngModel)]="userSearch"
+            class="w-full text-xs"
+          />
+
+          <!-- Role Filter -->
+          <select
+            [(ngModel)]="userRoleFilter"
+            class="h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:ring-1 focus:ring-primary shrink-0"
+          >
+            <option value="ALL">Todos os Papéis</option>
+            <option value="CLIENT">Clientes (CLIENT)</option>
+            <option value="RESTAURANT">Restaurantes (RESTAURANT)</option>
+            <option value="COURIER">Entregadores (COURIER)</option>
+            <option value="ADMIN">Administradores (ADMIN)</option>
+          </select>
+        </div>
+
+        <div class="text-xs text-muted-foreground">
+          Mostrando {{ filteredUsers().length }} de {{ users().length }} usuários
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-muted/60 text-muted-foreground font-semibold border-b border-border uppercase tracking-wider text-[11px]">
+              <tr>
+                <th class="p-3.5">Nome</th>
+                <th class="p-3.5">E-mail</th>
+                <th class="p-3.5">Telefone</th>
+                <th class="p-3.5">CPF</th>
+                <th class="p-3.5">Papel</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border/60">
+              @for (user of filteredUsers(); track user.id) {
+                <tr class="hover:bg-muted/20 transition-colors">
+                  <!-- Name -->
+                  <td class="p-3.5 font-bold text-foreground">{{ user.name }}</td>
+
+                  <!-- Email -->
+                  <td class="p-3.5 font-mono text-[11px] text-muted-foreground">{{ user.email }}</td>
+
+                  <!-- Phone -->
+                  <td class="p-3.5 text-muted-foreground">{{ user.phone || '-' }}</td>
+
+                  <!-- CPF -->
+                  <td class="p-3.5 text-muted-foreground font-mono text-[11px]">{{ user.cpf || '-' }}</td>
+
+                  <!-- Role Badge -->
+                  <td class="p-3.5">
+                    @switch (user.role) {
+                      @case ('ADMIN') {
+                        <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                          <ng-icon name="lucideShieldCheck" class="text-xs" />
+                          ADMIN
+                        </span>
+                      }
+                      @case ('RESTAURANT') {
+                        <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                          <ng-icon name="lucideStore" class="text-xs" />
+                          RESTAURANT
+                        </span>
+                      }
+                      @case ('COURIER') {
+                        <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 border border-blue-500/30">
+                          <ng-icon name="lucideBike" class="text-xs" />
+                          COURIER
+                        </span>
+                      }
+                      @default {
+                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          CLIENT
+                        </span>
+                      }
+                    }
+                  </td>
+
+                  <!-- Status Active/Blocked -->
+                  <td class="p-3.5">
+                    @if (user.active) {
+                      <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        Ativo
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1 text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                        Bloqueado
+                      </span>
+                    }
+                  </td>
+
+                  <!-- Action Toggle -->
+                  <td class="p-3.5 text-right">
+                    @if (user.role !== 'ADMIN') {
+                      <button
+                        hlmBtn
+                        size="xs"
+                        [variant]="user.active ? 'outline' : 'default'"
+                        class="gap-1"
+                        [disabled]="isTogglingUser() === user.id"
+                        (click)="toggleUser(user)"
+                      >
+                        @if (isTogglingUser() === user.id) {
+                          <ng-icon name="lucideRefreshCw" class="text-xs animate-spin" />
+                          <span>Atualizando...</span>
+                        } @else if (user.active) {
+                          <ng-icon name="lucideX" class="text-xs" />
+                          <span>Bloquear</span>
+                        } @else {
+                          <ng-icon name="lucideCheck" class="text-xs" />
+                          <span>Desbloquear</span>
+                        }
+                      </button>
+                    } @else {
+                      <span class="text-[10px] text-muted-foreground italic">Superadmin</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>

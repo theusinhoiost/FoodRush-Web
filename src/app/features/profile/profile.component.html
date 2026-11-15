@@ -84,6 +84,22 @@
             </div>
           </div>
 
+          @if (isAdmin()) {
+            <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <ng-icon name="lucideShieldCheck" class="text-xl text-amber-600 shrink-0" />
+                <div>
+                  <div class="text-xs font-bold text-foreground">Painel Superadmin Disponível</div>
+                  <div class="text-[11px] text-muted-foreground">Gerencie todos os restaurantes, taxas de split payment e clientes.</div>
+                </div>
+              </div>
+              <a routerLink="/admin" hlmBtn size="xs" class="gap-1 bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0">
+                <span>Abrir Superadmin</span>
+                <ng-icon name="lucideArrowRight" class="text-xs" />
+              </a>
+            </div>
+          }
+
           @if (authService.currentUser()?.address; as currAddr) {
             <div class="rounded-xl bg-muted/40 border border-border/70 p-3.5 space-y-2 text-xs">
               <div class="font-bold text-foreground flex items-center gap-1.5">

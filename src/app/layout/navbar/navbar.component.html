@@ -47,6 +47,16 @@
             <span>Painel KDS</span>
           </a>
         }
+        @if (isAdmin()) {
+          <a
+            routerLink="/admin"
+            routerLinkActive="bg-amber-500/20 text-amber-600 font-bold border-amber-500/30"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20 transition-all shadow-xs"
+          >
+            <ng-icon name="lucideShieldCheck" class="text-sm" />
+            <span>Superadmin</span>
+          </a>
+        }
         @if (canSeePartnerLink()) {
           <a
             routerLink="/register/restaurant"
@@ -151,6 +161,12 @@
       <a routerLink="/kds" routerLinkActive="text-primary font-semibold" class="flex flex-col items-center gap-0.5 py-1 px-2">
         <ng-icon name="lucideChefHat" class="text-base" />
         <span>KDS</span>
+      </a>
+    }
+    @if (isAdmin()) {
+      <a routerLink="/admin" routerLinkActive="text-amber-500 font-bold" class="flex flex-col items-center gap-0.5 py-1 px-2 text-amber-600">
+        <ng-icon name="lucideShieldCheck" class="text-base" />
+        <span>Admin</span>
       </a>
     }
     @if (canSeePartnerLink()) {
