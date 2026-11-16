@@ -152,7 +152,7 @@
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               "
-              (click)="selectedPaymentMethod.set('PIX'); paymentError.set(null)"
+              (click)="selectPaymentTab('PIX')"
             >
               <ng-icon name="lucideQrCode" class="text-sm text-emerald-500" />
               <span>Pix Instantâneo</span>
@@ -166,7 +166,7 @@
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               "
-              (click)="selectedPaymentMethod.set('CREDIT_CARD'); paymentError.set(null)"
+              (click)="selectPaymentTab('CREDIT_CARD')"
             >
               <ng-icon name="lucideCreditCard" class="text-sm text-blue-500" />
               <span>Cartão de Crédito</span>
@@ -182,7 +182,13 @@
 
           <!-- TAB 1: PIX -->
           @if (selectedPaymentMethod() === 'PIX') {
-            @if (!payment() || payment()?.paymentMethod !== 'PIX') {
+            @if (isPaymentLoading() || isGeneratingPix()) {
+              <div class="py-10 text-center space-y-3">
+                <ng-icon name="lucideRefreshCw" class="text-3xl text-emerald-500 animate-spin mx-auto block" />
+                <p class="text-sm font-medium text-foreground">Gerando QR Code Pix com Mercado Pago...</p>
+                <p class="text-xs text-muted-foreground">Isso leva apenas alguns instantes.</p>
+              </div>
+            } @else if (!payment() || payment()?.paymentMethod !== 'PIX') {
               <div class="py-6 text-center space-y-3">
                 <p class="text-sm text-muted-foreground">
                   Gere o código Pix para pagar no aplicativo do seu banco com desconto e aprovação imediata.
@@ -191,16 +197,10 @@
                   hlmBtn
                   size="default"
                   class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 px-6 shadow-md"
-                  [disabled]="isGeneratingPix()"
                   (click)="generatePix()"
                 >
-                  @if (isGeneratingPix()) {
-                    <ng-icon name="lucideRefreshCw" class="text-base animate-spin" />
-                    <span>Gerando Pix com Mercado Pago...</span>
-                  } @else {
-                    <ng-icon name="lucideQrCode" class="text-base" />
-                    <span>Gerar QR Code Pix</span>
-                  }
+                  <ng-icon name="lucideQrCode" class="text-base" />
+                  <span>Gerar QR Code Pix</span>
                 </button>
               </div>
             } @else {
@@ -356,10 +356,9 @@
                     [(ngModel)]="cardInstallments"
                     class="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
-                    <option [value]="1">1x de {{ ord.total | currency:'BRL':'symbol':'1.2-2' }} sem juros</option>
-                    <option [value]="2">2x de {{ (ord.total / 2) | currency:'BRL':'symbol':'1.2-2' }} sem juros</option>
-                    <option [value]="3">3x de {{ (ord.total / 3) | currency:'BRL':'symbol':'1.2-2' }} sem juros</option>
-                    <option [value]="6">6x de {{ (ord.total / 6) | currency:'BRL':'symbol':'1.2-2' }} sem juros</option>
+                    @for (opt of installmentOptions(); track opt.number) {
+                      <option [value]="opt.number">{{ opt.label }}</option>
+                    }
                   </select>
                 </div>
               </div>
