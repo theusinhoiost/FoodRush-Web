@@ -10,6 +10,7 @@ import { OrderService } from '../../../core/services/order.service';
 import { CartService } from '../../../core/services/cart.service';
 import { AuthService } from '../../../core/services/auth.service';
 import {
+  ComplementGroupDetail,
   ComplementItemDetail,
   DeliveryFeeEstimateResponse,
   MenuItemRequest,
@@ -87,6 +88,7 @@ export class RestaurantDetailComponent implements OnInit {
     new Map()
   );
   protected readonly itemQuantity = signal(1);
+  protected readonly customizationError = signal<string | null>(null);
 
   // Checkout State
   protected deliveryAddress = 'Avenida Paulista, 1000 - Bela Vista, São Paulo - SP, CEP: 01310-100';
@@ -182,11 +184,13 @@ export class RestaurantDetailComponent implements OnInit {
   selectItemForCustomization(item: MenuItemResponse): void {
     if (this.activeCustomizingItem()?.id === item.id) {
       this.activeCustomizingItem.set(null);
+      this.customizationError.set(null);
       return;
     }
     this.activeCustomizingItem.set(item);
     this.itemQuantity.set(1);
     this.selectedComplements.set(new Map());
+    this.customizationError.set(null);
 
     const firstAvailableSize = item.sizes?.find((s) => s.available && s.stockQuantity > 0);
     this.selectedSize.set(firstAvailableSize);
@@ -196,21 +200,71 @@ export class RestaurantDetailComponent implements OnInit {
     return this.selectedComplements().get(compId)?.quantity ?? 0;
   }
 
-  updateComplementQty(comp: ComplementItemDetail, delta: number): void {
+  getGroupTotalSelected(group: ComplementGroupDetail): number {
+    if (!group.items) return 0;
+    return group.items.reduce((sum, comp) => sum + this.getComplementQty(comp.id), 0);
+  }
+
+  isGroupFulfilled(group: ComplementGroupDetail): boolean {
+    const total = this.getGroupTotalSelected(group);
+    const min = group.required
+      ? Math.max(1, group.minQuantity != null ? group.minQuantity : 1)
+      : (group.minQuantity != null ? group.minQuantity : 0);
+    return total >= min;
+  }
+
+  isCustomizationValid(item: MenuItemResponse): boolean {
+    if (!item.complementGroups || item.complementGroups.length === 0) return true;
+    return item.complementGroups.every((g) => this.isGroupFulfilled(g));
+  }
+
+  getCustomizationErrorMessage(item: MenuItemResponse): string | null {
+    if (!item.complementGroups) return null;
+    for (const group of item.complementGroups) {
+      const total = this.getGroupTotalSelected(group);
+      const min = group.required
+        ? Math.max(1, group.minQuantity != null ? group.minQuantity : 1)
+        : (group.minQuantity != null ? group.minQuantity : 0);
+      if (total < min) {
+        return `Escolha pelo menos ${min} opção(ões) em "${group.name}".`;
+      }
+      if (group.maxQuantity != null && group.maxQuantity > 0 && total > group.maxQuantity) {
+        return `Você só pode escolher até ${group.maxQuantity} opção(ões) em "${group.name}".`;
+      }
+    }
+    return null;
+  }
+
+  updateComplementQty(group: ComplementGroupDetail, comp: ComplementItemDetail, delta: number): void {
     const map = new Map(this.selectedComplements());
     const current = map.get(comp.id)?.quantity ?? 0;
     const next = Math.max(0, current + delta);
+
+    if (delta > 0) {
+      const groupTotal = this.getGroupTotalSelected(group);
+      if (group.maxQuantity != null && group.maxQuantity > 0 && groupTotal >= group.maxQuantity) {
+        return;
+      }
+    }
+
     if (next === 0) {
       map.delete(comp.id);
     } else {
       map.set(comp.id, { item: comp, quantity: next });
     }
     this.selectedComplements.set(map);
+    this.customizationError.set(null);
   }
 
   confirmAddToCart(item: MenuItemResponse): void {
     const rest = this.restaurant();
     if (!rest) return;
+
+    const error = this.getCustomizationErrorMessage(item);
+    if (error) {
+      this.customizationError.set(error);
+      return;
+    }
 
     const fee = this.deliveryEstimate()
       ? Number(this.deliveryEstimate()!.totalDeliveryFee)
@@ -225,6 +279,7 @@ export class RestaurantDetailComponent implements OnInit {
     );
 
     this.activeCustomizingItem.set(null);
+    this.customizationError.set(null);
   }
 
   onCreateMenuItem(): void {

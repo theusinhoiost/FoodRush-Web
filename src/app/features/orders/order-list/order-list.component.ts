@@ -80,7 +80,7 @@ export class OrderListComponent implements OnInit {
     }
 
     const isKdsRoute = this.route.snapshot.routeConfig?.path === 'kds';
-    if (user?.role === 'RESTAURANT' || (isKdsRoute && this.canAccessKds())) {
+    if (user?.role === 'RESTAURANT' || user?.role === 'ADMIN' || (isKdsRoute && this.canAccessKds())) {
       this.activeTab.set('RESTAURANT');
     } else {
       this.activeTab.set('CUSTOMER');

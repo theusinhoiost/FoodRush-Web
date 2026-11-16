@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap, switchMap, catchError, of, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { CartService } from './cart.service';
 import {
   AuthResponse,
   LoginRequest,
@@ -71,6 +72,7 @@ const SEED_FALLBACK_USERS: Record<string, UserResponse> = {
 })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly cartService = inject(CartService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private readonly baseUrl = `${environment.apiUrl}/auth`;
@@ -152,7 +154,9 @@ export class AuthService {
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem('foodrush_cart');
     }
+    this.cartService.clearCart();
   }
 
   private setTokens(accessToken: string, refreshToken: string): void {

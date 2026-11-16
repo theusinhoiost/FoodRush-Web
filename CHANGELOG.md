@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Mandatory Dish Complements & Options Validation (`features/restaurants/restaurant-detail`):**
+  - Added strict client-side validation for required complement groups (e.g. sauce selection in burgers), preventing items with missing mandatory choices from being added to the cart.
+  - Added dynamic indicators showing fulfilled vs unfulfilled mandatory complement status.
+  - Disabled "Confirmar e Adicionar à Sacola" button until all required groups satisfy minimum option thresholds.
+  - Enforced `maxQuantity` ceilings, preventing excessive add-ons.
+- **Cart Clearing on Logout (`core/services/auth.service`):**
+  - Automatically resets cart state and clears persisted cart data in `localStorage` upon user logout.
+- **Admin Navigation & KDS Workflow Hardening (`layout/navbar`, `features/orders/order-list`):**
+  - Hidden irrelevant client links ("Meus Pedidos", "Seja Parceiro", cart button) for users with role `ADMIN`.
+  - Replaced manual tab toggle in order list for admins with direct access to the KDS Kitchen Display System.
+  - Added quick restaurant selector dropdown in the KDS panel allowing Admins to easily switch between all restaurants and monitor or advance order lifecycles.
+
 ### Added
 - **Seamless Pix QR Code Auto-Generation & Dynamic Installments Selector (`features/orders/order-detail`, `features/restaurants/restaurant-detail`):**
   - Added automatic Pix QR Code generation upon navigating to order details with `method=PIX` or when switching payment tabs, eliminating manual button clicks.
