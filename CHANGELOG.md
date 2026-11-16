@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Seamless Pix QR Code Auto-Generation & Dynamic Installments Selector (`features/orders/order-detail`, `features/restaurants/restaurant-detail`):**
+  - Added automatic Pix QR Code generation upon navigating to order details with `method=PIX` or when switching payment tabs, eliminating manual button clicks.
+  - Added loading indicator spinner during Mercado Pago Pix generation with immediate fallback error display.
+  - Implemented dynamic 1x to 12x installment calculation and selector dropdown in the cart drawer on `/restaurants/:id` when "Cartão de Crédito" is selected.
+  - Replaced static card installment options on `/orders/:id` with dynamic 1x-12x zero-interest calculations based on actual order total, preserving the pre-selected option from the cart.
+
+### Added
 - **Mercado Pago Connect Relocated to Merchant Profile (`features/profile`, `features/restaurants/restaurant-detail`):**
   - Moved the Mercado Pago Split Payment management card from `/restaurants/:id` to `/profile`.
   - Added restaurant detection for logged-in `RESTAURANT` and `ADMIN` users to manage split connections, view commission rates, and execute 1-click test connect or OAuth flows directly from their profile.

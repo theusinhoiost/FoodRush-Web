@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, OnDestroy, PLATFORM_ID } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, PLATFORM_ID, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe, UpperCasePipe } from '@angular/common';
@@ -61,6 +61,15 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
   protected cardCpf = '';
   protected cardInstallments = 1;
 
+  protected readonly installmentOptions = computed(() => {
+    const total = this.order()?.total || 0;
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => ({
+      number: num,
+      amount: total / num,
+      label: `${num}x de R$ ${(total / num).toFixed(2).replace('.', ',')} sem juros`,
+    }));
+  });
+
   private pollInterval: ReturnType<typeof setInterval> | null = null;
 
   protected readonly steps: { status: OrderStatus; label: string; icon: string }[] = [
@@ -77,11 +86,28 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
     if (methodParam === 'CREDIT_CARD' || methodParam === 'PIX') {
       this.selectedPaymentMethod.set(methodParam);
     }
+    const instParam = this.route.snapshot.queryParamMap.get('installments');
+    if (instParam) {
+      this.cardInstallments = Number(instParam) || 1;
+    }
     this.loadOrder();
   }
 
   ngOnDestroy(): void {
     this.stopPolling();
+  }
+
+  selectPaymentTab(method: 'PIX' | 'CREDIT_CARD'): void {
+    this.selectedPaymentMethod.set(method);
+    this.paymentError.set(null);
+    if (
+      method === 'PIX' &&
+      this.order()?.status === 'CREATED' &&
+      (!this.payment() || this.payment()?.paymentMethod !== 'PIX') &&
+      !this.isGeneratingPix()
+    ) {
+      this.generatePix();
+    }
   }
 
   loadOrder(silent = false): void {
@@ -96,7 +122,11 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
         if (!silent) this.isLoading.set(false);
 
         if (data.status === 'CREATED') {
-          this.loadPayment(data.id);
+          this.loadPayment(data.id, () => {
+            if (this.selectedPaymentMethod() === 'PIX' && !this.payment()) {
+              this.generatePix();
+            }
+          });
           this.startPolling(data.id);
         } else {
           this.stopPolling();
@@ -111,15 +141,17 @@ export class OrderDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadPayment(orderId: string): void {
+  loadPayment(orderId: string, onComplete?: () => void): void {
     this.isPaymentLoading.set(true);
     this.paymentService.getPaymentByOrderId(orderId).subscribe({
       next: (pay) => {
         this.payment.set(pay);
         this.isPaymentLoading.set(false);
+        if (onComplete) onComplete();
       },
       error: () => {
         this.isPaymentLoading.set(false);
+        if (onComplete) onComplete();
       },
     });
   }
