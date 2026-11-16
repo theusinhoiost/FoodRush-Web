@@ -21,12 +21,12 @@ export class NavbarComponent {
 
   protected readonly canSeePartnerLink = computed(() => {
     const role = this.authService.currentUser()?.role;
-    return role !== 'RESTAURANT';
+    return role !== 'RESTAURANT' && role !== 'ADMIN';
   });
 
   protected readonly canOrder = computed(() => {
     const role = this.authService.currentUser()?.role;
-    return role !== 'RESTAURANT';
+    return role !== 'RESTAURANT' && role !== 'ADMIN';
   });
 
   protected readonly canAccessKds = computed(() => {

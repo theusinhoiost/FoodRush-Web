@@ -344,20 +344,29 @@
                     <!-- 2. Complement Groups -->
                     @if (item.complementGroups && item.complementGroups.length > 0) {
                       @for (group of item.complementGroups; track group.id) {
-                        <div class="space-y-2">
+                        <div class="space-y-2 pt-1 border-t border-border">
                           <div class="flex items-center justify-between">
-                            <div>
+                            <div class="flex items-center gap-1.5">
                               <span class="text-xs font-bold uppercase tracking-wider text-foreground">
                                 {{ group.name }}
                               </span>
-                              <span class="text-[11px] text-muted-foreground ml-2">
-                                (Máx: {{ group.maxQuantity }})
+                              <span class="text-[11px] text-muted-foreground ml-1">
+                                ({{ getGroupTotalSelected(group) }}/{{ group.maxQuantity }})
                               </span>
                             </div>
-                            @if (group.required) {
-                              <span hlmBadge class="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
-                                Obrigatório (Mín {{ group.minQuantity }})
-                              </span>
+                            @if (group.required || (group.minQuantity && group.minQuantity > 0)) {
+                              @if (isGroupFulfilled(group)) {
+                                <span hlmBadge class="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold gap-1">
+                                  <ng-icon name="lucideCheck" class="text-[10px]" />
+                                  <span>Concluído</span>
+                                </span>
+                              } @else {
+                                <span hlmBadge class="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-bold">
+                                  Obrigatório (Escolha pelo menos {{ group.minQuantity || 1 }})
+                                </span>
+                              }
+                            } @else {
+                              <span class="text-[10px] text-muted-foreground">Opcional</span>
                             }
                           </div>
 
@@ -376,7 +385,8 @@
                                     variant="outline"
                                     size="icon-xs"
                                     type="button"
-                                    (click)="updateComplementQty(comp, -1)"
+                                    [disabled]="getComplementQty(comp.id) === 0"
+                                    (click)="updateComplementQty(group, comp, -1)"
                                   >
                                     <ng-icon name="lucideMinus" class="text-xs" />
                                   </button>
@@ -388,7 +398,8 @@
                                     variant="outline"
                                     size="icon-xs"
                                     type="button"
-                                    (click)="updateComplementQty(comp, 1)"
+                                    [disabled]="group.maxQuantity != null && group.maxQuantity > 0 && getGroupTotalSelected(group) >= group.maxQuantity"
+                                    (click)="updateComplementQty(group, comp, 1)"
                                   >
                                     <ng-icon name="lucidePlus" class="text-xs" />
                                   </button>
@@ -400,8 +411,15 @@
                       }
                     }
 
+                    @if (customizationError()) {
+                      <div class="p-2.5 rounded-xl border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2">
+                        <ng-icon name="lucideAlertCircle" class="text-base shrink-0" />
+                        <span>{{ customizationError() }}</span>
+                      </div>
+                    }
+
                     <!-- 3. Quantity & Confirm Add to Cart -->
-                    <div class="flex items-center justify-between pt-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                       <div class="flex items-center gap-2">
                         <span class="text-xs font-medium">Quantidade:</span>
                         <button
@@ -425,10 +443,24 @@
                         </button>
                       </div>
 
-                      <button hlmBtn size="sm" type="button" class="gap-1.5" (click)="confirmAddToCart(item)">
-                        <ng-icon name="lucideShoppingCart" class="text-xs" />
-                        <span>Confirmar e Adicionar à Sacola</span>
-                      </button>
+                      <div class="flex flex-col sm:items-end gap-1">
+                        <button
+                          hlmBtn
+                          size="sm"
+                          type="button"
+                          class="gap-1.5 shadow-sm"
+                          [disabled]="!isCustomizationValid(item)"
+                          (click)="confirmAddToCart(item)"
+                        >
+                          <ng-icon name="lucideShoppingCart" class="text-xs" />
+                          <span>Confirmar e Adicionar à Sacola</span>
+                        </button>
+                        @if (!isCustomizationValid(item)) {
+                          <span class="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                            * Selecione as opções obrigatórias para adicionar à sacola
+                          </span>
+                        }
+                      </div>
                     </div>
                   </div>
                 }

@@ -13,37 +13,6 @@
         }}
       </p>
     </div>
-
-    @if (isAdmin()) {
-      <div class="inline-flex rounded-xl border border-border bg-muted/50 p-1">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
-          [class]="
-            activeTab() === 'CUSTOMER'
-              ? 'bg-background text-foreground shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          "
-          (click)="switchTab('CUSTOMER')"
-        >
-          <ng-icon name="lucideShoppingBag" class="text-sm" />
-          <span>Meus Pedidos</span>
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
-          [class]="
-            activeTab() === 'RESTAURANT'
-              ? 'bg-background text-foreground shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          "
-          (click)="switchTab('RESTAURANT')"
-        >
-          <ng-icon name="lucideChefHat" class="text-sm" />
-          <span>Painel KDS</span>
-        </button>
-      </div>
-    }
   </div>
 
   @if (!authService.isAuthenticated()) {
@@ -98,21 +67,19 @@
       <div class="mb-6 rounded-2xl border border-border bg-card p-4 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-semibold text-muted-foreground">Restaurante:</span>
-            @for (rest of availableRestaurants(); track rest.id) {
-              <button
-                type="button"
-                (click)="selectRestaurantForKds(rest.id)"
-                class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all"
-                [class]="
-                  selectedRestaurantId() === rest.id
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-muted-foreground border-border hover:text-foreground'
-                "
-              >
-                {{ rest.tradeName }}
-              </button>
-            }
+            <span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+              <ng-icon name="lucideStore" class="text-sm text-primary" />
+              <span>Restaurante:</span>
+            </span>
+            <select
+              [ngModel]="selectedRestaurantId()"
+              (ngModelChange)="selectRestaurantForKds($event)"
+              class="h-8 rounded-lg border border-input bg-background px-3 py-1 text-xs font-semibold shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer"
+            >
+              @for (rest of availableRestaurants(); track rest.id) {
+                <option [value]="rest.id">{{ rest.tradeName }}</option>
+              }
+            </select>
             @if (availableRestaurants().length === 0) {
               <span class="text-xs text-amber-600 font-medium">Nenhum restaurante vinculado à sua conta.</span>
             }
