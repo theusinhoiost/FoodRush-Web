@@ -91,8 +91,18 @@ export class RestaurantDetailComponent implements OnInit {
   // Checkout State
   protected deliveryAddress = 'Avenida Paulista, 1000 - Bela Vista, São Paulo - SP, CEP: 01310-100';
   protected readonly selectedPaymentMethod = signal<'PIX' | 'CREDIT_CARD'>('PIX');
+  protected readonly selectedInstallments = signal<number>(1);
   protected readonly isPlacingOrder = signal(false);
   protected readonly checkoutError = signal<string | null>(null);
+
+  protected readonly cartInstallmentOptions = computed(() => {
+    const total = this.cartService.total();
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => ({
+      number: num,
+      amount: total / num,
+      label: `${num}x de R$ ${(total / num).toFixed(2).replace('.', ',')} sem juros`,
+    }));
+  });
 
   // New Menu Item Form State
   protected readonly showNewItemModal = signal(false);
@@ -302,7 +312,10 @@ export class RestaurantDetailComponent implements OnInit {
         this.isPlacingOrder.set(false);
         this.cartService.clearCart();
         this.router.navigate(['/orders', order.id], {
-          queryParams: { method: this.selectedPaymentMethod() },
+          queryParams: {
+            method: this.selectedPaymentMethod(),
+            installments: this.selectedInstallments(),
+          },
         });
       },
       error: (err: HttpErrorResponse) => {

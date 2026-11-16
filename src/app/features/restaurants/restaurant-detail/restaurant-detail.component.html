@@ -598,6 +598,24 @@
                     <span class="text-[10px] text-muted-foreground">Até 12x no cartão</span>
                   </button>
                 </div>
+
+                @if (selectedPaymentMethod() === 'CREDIT_CARD') {
+                  <div class="space-y-1.5 pt-1 animate-fade-in">
+                    <div class="flex items-center justify-between">
+                      <label class="text-[11px] font-semibold text-foreground">Opções de Parcelamento</label>
+                      <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Sem juros</span>
+                    </div>
+                    <select
+                      [ngModel]="selectedInstallments()"
+                      (ngModelChange)="selectedInstallments.set($event)"
+                      class="w-full h-8 rounded-lg border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary font-medium"
+                    >
+                      @for (opt of cartInstallmentOptions(); track opt.number) {
+                        <option [value]="opt.number">{{ opt.label }}</option>
+                      }
+                    </select>
+                  </div>
+                }
               </div>
 
               @if (!authService.isAuthenticated()) {
